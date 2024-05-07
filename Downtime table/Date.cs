@@ -11,11 +11,11 @@ namespace Downtime_table
 
         public TimeSpan Difference { get; private set; }
 
-        public int IdTypeDowntime { get; private set; }
+        public int IdTypeDowntime { get; set; }
 
-        public string TypeDowntime { get; private set; }
+        public string TypeDowntime { get; set; }
 
-        public string Comments { get; private set; }
+        public string Comments { get; set; }
 
         public Date(int id, DateTime timestamp, TimeSpan difference)
         {
