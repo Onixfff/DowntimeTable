@@ -9,7 +9,7 @@ namespace Downtime_table
 
         public DateTime Timestamp { get; private set; }
 
-        public DateTime Difference { get; private set; }
+        public TimeSpan Difference { get; private set; }
 
         public int IdTypeDowntime { get; private set; }
 
@@ -17,7 +17,7 @@ namespace Downtime_table
 
         public string Comments { get; private set; }
 
-        public Date(int id, DateTime timestamp, DateTime difference)
+        public Date(int id, DateTime timestamp, TimeSpan difference)
         {
             Id = id;
             Timestamp = timestamp;

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Downtime_table
@@ -17,8 +18,9 @@ namespace Downtime_table
             
         }
 
-        public async void GetData(DateTime dateTime)
+        public async Task<DataSet> GetData(DateTime dateTime)
         {
+            DataSet ds = new DataSet();
             string sql;
             DateTime currentTime = dateTime;
             DateTime nextData = currentTime.AddDays(1);
@@ -67,18 +69,14 @@ namespace Downtime_table
                         {
                             while (await reader.ReadAsync())
                             {
-                                    int id = reader.GetInt32(0);
-                                    DateTime dateTime1 = reader.GetDateTime(1);
-                                    TimeSpan mySqlDateTime = reader.GetTimeSpan(2);
-                            dates.Add(new Date(
-                                    reader.GetInt32(0),
-                                    reader.GetDateTime(1),
-                                    reader.GetDateTime(2)));
+                                dates.Add(new Date(
+                                        reader.GetInt32(0),
+                                        reader.GetDateTime(1),
+                                        reader.GetTimeSpan(2)));
                             }
                             reader.Close();
                         }
 
-                    DataSet ds = new DataSet();
                     DataTable dt = new DataTable("MyTable");
 
                     dt.Columns.Add(new DataColumn("id", typeof(int)));
@@ -90,12 +88,11 @@ namespace Downtime_table
                     for (int i = 0; i < dates.Count; i++)
                     {
                         DataRow dr = dt.NewRow();
-                        dr["id"] = 123;
-                        dr["Комментарий"] = "John";
+                        dr["id"] = dates[i].Id;
+                        dr["Время начала"] = dates[i].Timestamp;
                         dt.Rows.Add(dr);
                     }
                     ds.Tables.Add(dt);
-
                 }
             }
             catch (Exception ex)
@@ -103,6 +100,8 @@ namespace Downtime_table
                 MessageBox.Show(ex.Message);
             }
             finally {await _mCon.CloseAsync(); }
+
+            return ds;
         }
     }
 }
