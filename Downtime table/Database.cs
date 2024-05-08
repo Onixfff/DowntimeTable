@@ -249,6 +249,7 @@ namespace Downtime_table
                 {
                     using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                     {
+                        comments = new List<string>();
                         while (await reader.ReadAsync())
                         {
                             comments.Add(reader.GetString(0));
