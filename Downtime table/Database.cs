@@ -3,11 +3,16 @@ using MySql.Data.Types;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Configuration;
 using System.Data;
+using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
+using static Downtime_table.Form1;
 
 namespace Downtime_table
 {
@@ -16,9 +21,10 @@ namespace Downtime_table
         private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["local"].ConnectionString);
         private DataSet _dsMain;
         private DataSet _dsIdle;
-        List<Date> dates = new List<Date>();
+        public List<Date> dates = new List<Date>();
+        private List<string> comments;
 
-        public async Task<DataSet> GetMain(DateTime dateTime)
+        public async Task<DataSet> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
             DataSet ds = new DataSet();
             string sql;
@@ -83,7 +89,8 @@ namespace Downtime_table
                 dt.Columns[0].ReadOnly = true;
                 dt.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
                 dt.Columns[1].ReadOnly = true;
-                dt.Columns.Add(new DataColumn("Вид простоя", typeof(string)));
+                dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
+                dt.Columns[2].ReadOnly = true;
                 dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
 
                 for (int i = 0; i < dates.Count; i++)
@@ -91,11 +98,15 @@ namespace Downtime_table
                     DataRow dr = dt.NewRow();
                     dr["id"] = dates[i].Id;
                     dr["Время начала"] = dates[i].Timestamp;
+                    dr["Время простоя"] = dates[i].Difference;
+                    dr["Комментарий"] = dates[i].Comments;
                     dt.Rows.Add(dr);
                 }
 
                 ds.Tables.Add(dt);
                 _dsMain = ds;
+
+                dataGridView1.DataSource = ds;
                 return ds;
             }
             catch (Exception ex)
@@ -107,7 +118,7 @@ namespace Downtime_table
             return null;
         }
 
-        public async Task<DataSet> GetIdles()
+        public async Task<List<DateIdle>> GetIdles()
         {
             try
             {
@@ -121,7 +132,7 @@ namespace Downtime_table
                 }
 
             Select:
-                string query = "";
+                string query = "SELECT * FROM spslogger.ididles;";
                 List<DateIdle> idles = new List<DateIdle>();
 
                 using (MySqlCommand cmd = new MySqlCommand(query, _mCon))
@@ -139,24 +150,7 @@ namespace Downtime_table
                             );
                         }
                         reader.Close();
-
-                        DataTable dt = new DataTable("MyTable");
-
-                        dt.Columns.Add(new DataColumn("id", typeof(int)));
-                        dt.Columns[0].ReadOnly = true;
-                        dt.Columns.Add(new DataColumn("Наименование", typeof(string)));
-                        dt.Columns[1].ReadOnly = true;
-
-                        for (int i = 0; i < idles.Count; i++)
-                        {
-                            DataRow dr = dt.NewRow();
-                            dr["id"] = idles[i].Id;
-                            dr["Наименование"] = idles[i].Name;
-                            dt.Rows.Add(dr);
-                        }
-
-                        _dsIdle.Tables.Add(dt);
-                        return _dsIdle;
+                        return idles;
                     }
                 }
 
@@ -170,7 +164,7 @@ namespace Downtime_table
             return null;
         }
 
-        public DataSet ChangeData(int id, string idle, int idIdle)
+        public void ChangeData(int id, int idIdle)
         {
 
             for (int i = 0; i < dates.Count; i++)
@@ -178,29 +172,8 @@ namespace Downtime_table
                 if (dates[i].Id == id)
                 {
                     dates[i].IdTypeDowntime = idIdle;
-                    dates[i].TypeDowntime = idle;
                 }
             }
-
-            DataTable dt = new DataTable("MyTable");
-
-            dt.Columns.Add(new DataColumn("id", typeof(int)));
-            dt.Columns[0].ReadOnly = true;
-            dt.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
-            dt.Columns[1].ReadOnly = true;
-            dt.Columns.Add(new DataColumn("Вид простоя", typeof(string)));
-            dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
-
-            for (int i = 0; i < dates.Count; i++)
-            {
-                DataRow dr = dt.NewRow();
-                dr["id"] = dates[i].Id;
-                dr["Время начала"] = dates[i].Timestamp;
-                dt.Rows.Add(dr);
-            }
-
-            _dsMain.Tables.Add(dt);
-            return _dsMain;
         }
 
         public void ChangeData(int id, string comment)
@@ -235,7 +208,7 @@ namespace Downtime_table
                 var valueList = new List<string>();
                 foreach (var entry in dates)
                 {
-                    valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', {entry.Difference}, '{entry.IdTypeDowntime}' '{entry.Comments.Replace("'", "''")}')");
+                    valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', { entry.Difference}, '{entry.IdTypeDowntime}' '{entry.Comments.Replace("'", "''")}')");
                 }
 
                 // Соединяем все строки значений в один запрос
@@ -256,6 +229,42 @@ namespace Downtime_table
             finally { await _mCon.CloseAsync(); }
         }
 
+        public async Task<string[]> GetComments()
+        {
+            try
+            {
+                try
+                {
+                    await _mCon.OpenAsync();
+                }
+                catch
+                {
+                    goto Select;
+                }
+
+            Select:
+                string query = "SELECT Comment FROM downtime group by Comment";
+
+                using (MySqlCommand command = new MySqlCommand(query, _mCon))
+                {
+                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            comments.Add(reader.GetString(0));
+                        }
+                        reader.Close();
+                    }
+                }
+                return comments.ToArray();
+            }
+            catch (Exception ex)
+            {
+                //MessageBox.Show(ex.Message);
+            }
+            finally { await _mCon.CloseAsync();}
+            return null;
+        }
 
     }
 }
