@@ -98,6 +98,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Comments.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Database.cs" />
     <Compile Include="Date.cs" />
     <Compile Include="DateIdle.cs" />

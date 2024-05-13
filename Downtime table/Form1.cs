@@ -35,38 +35,16 @@ namespace Downtime_table
 
             dataGridView1.Columns.Add(cmbColumn);
 
+            dataGridView1.Columns["id"].DisplayIndex = 0;
+            dataGridView1.Columns["Время начала"].DisplayIndex = 1;
+            dataGridView1.Columns["Время простоя"].DisplayIndex = 2;
             dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 3;
+            dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
 
 
         }
 
-        private void dataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            int targetId = 0;
-
-            if (dataGridView1.CurrentCell.RowIndex >= 0)
-            {
-                int id;
-
-                switch (dataGridView1.CurrentCell.ColumnIndex)
-                {
-                    //case 3:
-                    //    if (e.ColumnIndex == dataGridView1.Columns["cmbVidProstoya"].Index)
-                    //    {
-                    //        id = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells["cmbVidProstoya"].Value);
-                    //        Console.WriteLine("Выбранное ID: " + id.ToString());
-                    //    }
-                    //    break;
-                    case 4:
-                        //id = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells[targetId].Value);
-                        //string comment = dataGridView1.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
-                        //database.ChangeData(id, comment);
-                        break;
-                }
-            }
-        }
-
-        private async void button1_Click(object sender, EventArgs e)
+        private void button1_Click(object sender, EventArgs e)
         {
             database.InsertData();
         }
@@ -84,6 +62,7 @@ namespace Downtime_table
                         tb.AutoCompleteSource = AutoCompleteSource.CustomSource;
                         AutoCompleteStringCollection data = new AutoCompleteStringCollection();
                         var info = await database.GetComments();
+                        
                         if(info != null)
                         {
                             data.AddRange(info);
@@ -91,19 +70,10 @@ namespace Downtime_table
                         }
                         else
                         {
+
                         }
                     }
                 }
-            }
-        }
-
-        public class Comments
-        {
-            List<string> _comments;
-
-            public Comments(List<string> comments)
-            {
-                _comments = comments;
             }
         }
 
