@@ -1,17 +1,18 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Downtime_table
 {
-    public partial class Form1
+    public class Comments
     {
-        public class Comments
-        {
-            List<string> _comments;
+        List<string> _comments;
 
-            public Comments(List<string> comments)
-            {
-                _comments = comments;
-            }
+        public Comments(List<string> comments)
+        {
+            _comments = comments;
         }
     }
 }

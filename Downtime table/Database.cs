@@ -27,7 +27,7 @@ namespace Downtime_table
         public async Task<DataSet> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
             DataSet ds = new DataSet();
-            string sql;
+            string sql, sqlDownTime;
             DateTime currentTime = dateTime;
             DateTime nextData = currentTime.AddDays(1);
             DateTime lastDate = currentTime.AddDays(-1);
@@ -49,10 +49,12 @@ namespace Downtime_table
                 (timeOfDay >= TimeSpan.FromHours(20) || timeOfDay < TimeSpan.FromHours(8)))
             {
                 sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{lastDate.ToString("yyyy-MM-dd")} 20:00:00'), downtime AS ( SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
+                sqlDownTime = "select * from downTime where Timestamp = ";
             }
             else
             {
                 sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' or Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'),downtime AS (SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
+                sqlDownTime = "";
             }
 #endif
             try
@@ -67,6 +69,16 @@ namespace Downtime_table
                 }
 
             Select:
+
+                DataTable dt = new DataTable("MyTable");
+
+                dt.Columns.Add(new DataColumn("id", typeof(int)));
+                dt.Columns[0].ReadOnly = true;
+                dt.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
+                dt.Columns[1].ReadOnly = true;
+                dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
+                dt.Columns[2].ReadOnly = true;
+                dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
 
                 using (MySqlCommand command = new MySqlCommand(sql, _mCon))
                 {
@@ -83,16 +95,6 @@ namespace Downtime_table
                     }
                 }
 
-                DataTable dt = new DataTable("MyTable");
-
-                dt.Columns.Add(new DataColumn("id", typeof(int)));
-                dt.Columns[0].ReadOnly = true;
-                dt.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
-                dt.Columns[1].ReadOnly = true;
-                dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
-                dt.Columns[2].ReadOnly = true;
-                dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
-
                 for (int i = 0; i < dates.Count; i++)
                 {
                     DataRow dr = dt.NewRow();
@@ -108,6 +110,7 @@ namespace Downtime_table
 
                 dataGridView1.DataSource = ds;
                 return ds;
+
             }
             catch (Exception ex)
             {
@@ -116,6 +119,60 @@ namespace Downtime_table
             finally {await _mCon.CloseAsync(); }
 
             return null;
+        }
+
+        public async Task<bool> CheckData(DateTime dateTime, bool isDay)
+        {
+            bool isCheck = false;
+
+            try
+            {
+                DateTime currentTime = dateTime;
+                DateTime nextData = currentTime.AddDays(1);
+                DateTime lastDate = currentTime.AddDays(-1);
+                TimeSpan timeOfDay = currentTime.TimeOfDay;
+
+                string query;
+                if (isDay)
+                    query = "select count(*) from downtime where Timestamp = ";
+                else
+                    query = "select count(*) from downtime where Timestamp = ";
+
+                try
+                {
+                    await _mCon.OpenAsync();
+                }
+                catch(MySqlException)
+                {
+                    goto Select;
+                }
+
+            Select:
+                using (MySqlCommand command = new MySqlCommand(query, _mCon))
+                {
+                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            if(reader.IsDBNullAsync(0).Result ? false : reader.GetInt32(0) > 0)
+                            {
+                                isCheck = true;
+                            }
+                        }
+                        reader.Close();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally
+            {
+                await _mCon.CloseAsync();
+            }
+
+            return isCheck;
         }
 
         public async Task<List<DateIdle>> GetIdles()
