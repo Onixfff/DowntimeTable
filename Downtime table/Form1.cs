@@ -41,6 +41,26 @@ namespace Downtime_table
             dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 3;
             dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
 
+            if (!database.GetBoolIsNewData())
+            {
+                List<Date> dates = database.GetListDate();
+                for(int i = 0; i < dates.Count; i++)
+                {
+                    foreach (DataGridViewRow row in dataGridView1.Rows)
+                    {
+                        if (row.Cells["cmbVidProstoya"] is DataGridViewComboBoxCell comboBoxCell)
+                        {
+                            // Установка выбранного значения для ComboBox в каждой строке
+                            if (dates[i].Id == Convert.ToInt32(row.Cells["id"].Value))
+                                comboBoxCell.Value = dates[i].IdTypeDowntime; // Установить значение на "Значение 1"
+                        }
+                    }
+                }
+            }
+            else
+            {
+
+            }
 
         }
 
@@ -100,7 +120,6 @@ namespace Downtime_table
                         {
                             id = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells[targetId].Value);
                             int idIdle = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells["cmbVidProstoya"].Value);;
-                            Console.WriteLine("Выбранное ID: " + id.ToString() + "Выбранный IdIdle: " + idIdle.ToString());
                             database.ChangeData(id, idIdle);
                         }
                     break;

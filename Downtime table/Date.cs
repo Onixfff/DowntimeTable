@@ -21,5 +21,14 @@ namespace Downtime_table
             Timestamp = timestamp;
             Difference = difference;
         }
+
+        public Date(int id, DateTime timestamp, TimeSpan difference, int idTypeDowntime, string comments)
+        {
+            Id = id;
+            Timestamp = timestamp;
+            Difference = difference;
+            IdTypeDowntime = idTypeDowntime;
+            Comments = comments;
+        }
     }
 }

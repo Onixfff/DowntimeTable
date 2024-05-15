@@ -23,6 +23,8 @@ namespace Downtime_table
         private DataSet _dsIdle;
         public List<Date> dates = new List<Date>();
         private List<string> comments;
+        private bool isNewData;
+        List<DateIdle> idles;
 
         public async Task<DataSet> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
@@ -32,6 +34,7 @@ namespace Downtime_table
             DateTime nextData = currentTime.AddDays(1);
             DateTime lastDate = currentTime.AddDays(-1);
             TimeSpan timeOfDay = currentTime.TimeOfDay;
+            idles = await GetIdles();
 #if (!DEBUG)
             if ((timeOfDay >= TimeSpan.FromHours(8) && timeOfDay < TimeSpan.FromHours(20)) ||
                 (timeOfDay >= TimeSpan.FromHours(20) || timeOfDay < TimeSpan.FromHours(8)))
@@ -49,26 +52,16 @@ namespace Downtime_table
                 (timeOfDay >= TimeSpan.FromHours(20) || timeOfDay < TimeSpan.FromHours(8)))
             {
                 sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{lastDate.ToString("yyyy-MM-dd")} 20:00:00'), downtime AS ( SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
-                sqlDownTime = "select * from downTime where Timestamp = ";
+                sqlDownTime = $"select * from downTime where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{lastDate.ToString("yyyy-MM-dd")} 20:00:00'";
             }
             else
             {
                 sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' or Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'),downtime AS (SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
-                sqlDownTime = "";
+                sqlDownTime = "select * from downTime where Timestamp >= '{currentTime.ToString(\"yyyy-MM-dd\")} 20:00:00' or Timestamp < '{nextData.ToString(\"yyyy-MM-dd\")} 08:00:00'";
             }
 #endif
             try
             {
-                try
-                {
-                    await _mCon.OpenAsync();
-                }
-                catch (MySqlException)
-                {
-                    goto Select;
-                }
-
-            Select:
 
                 DataTable dt = new DataTable("MyTable");
 
@@ -79,20 +72,51 @@ namespace Downtime_table
                 dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
                 dt.Columns[2].ReadOnly = true;
                 dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
-
-                using (MySqlCommand command = new MySqlCommand(sql, _mCon))
+                
+                dates.Clear();
+                dates = await CheckData(sqlDownTime);
+                
+                if(dates != null && dates.Count > 0)
                 {
-                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    isNewData = false;
+                }
+                else
+                {
+                    isNewData = true;
+                }
+
+                try
+                {
+                    await _mCon.OpenAsync();
+                }
+                catch (MySqlException)
+                {
+                    goto Select;
+                }
+
+            Select:
+                if (isNewData)
+                {
+                    dates.Clear();
+
+                    using (MySqlCommand command = new MySqlCommand(sql, _mCon))
                     {
-                        while (await reader.ReadAsync())
+                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                         {
-                            dates.Add(new Date(
-                                    reader.GetInt32(0),
-                                    reader.GetDateTime(1),
-                                    reader.GetTimeSpan(2)));
+                            while (await reader.ReadAsync())
+                            {
+                                dates.Add(new Date(
+                                        reader.GetInt32(0),
+                                        reader.GetDateTime(1),
+                                        reader.GetTimeSpan(2)));
+                            }
+                            reader.Close();
                         }
-                        reader.Close();
                     }
+                }
+                else
+                {
+
                 }
 
                 for (int i = 0; i < dates.Count; i++)
@@ -121,26 +145,16 @@ namespace Downtime_table
             return null;
         }
 
-        public async Task<bool> CheckData(DateTime dateTime, bool isDay)
+        public async Task<List<Date>> CheckData(string query)
         {
-            bool isCheck = false;
-
+            List<Date> datesLocal = new List<Date>();
             try
             {
-                DateTime currentTime = dateTime;
-                DateTime nextData = currentTime.AddDays(1);
-                DateTime lastDate = currentTime.AddDays(-1);
-                TimeSpan timeOfDay = currentTime.TimeOfDay;
-
-                string query;
-                if (isDay)
-                    query = "select count(*) from downtime where Timestamp = ";
-                else
-                    query = "select count(*) from downtime where Timestamp = ";
 
                 try
                 {
-                    await _mCon.OpenAsync();
+                    if(_mCon.State == ConnectionState.Closed)
+                        await _mCon.OpenAsync();
                 }
                 catch(MySqlException)
                 {
@@ -154,10 +168,12 @@ namespace Downtime_table
                     {
                         while (await reader.ReadAsync())
                         {
-                            if(reader.IsDBNullAsync(0).Result ? false : reader.GetInt32(0) > 0)
-                            {
-                                isCheck = true;
-                            }
+                            datesLocal.Add(new Date(
+                                    reader.GetInt32(0),
+                                    reader.GetDateTime(1),
+                                    reader.GetTimeSpan(2),
+                                    reader.GetInt32(3),
+                                    reader.GetString(4)));
                         }
                         reader.Close();
                     }
@@ -172,7 +188,7 @@ namespace Downtime_table
                 await _mCon.CloseAsync();
             }
 
-            return isCheck;
+            return datesLocal;
         }
 
         public async Task<List<DateIdle>> GetIdles()
@@ -247,43 +263,87 @@ namespace Downtime_table
 
         public async void InsertData()
         {
-            try
+            if (isNewData)
             {
                 try
                 {
-                    await _mCon.OpenAsync();
+                    try
+                    {
+                        await _mCon.OpenAsync();
+                    }
+                    catch (MySqlException ex)
+                    {
+                        goto Insert;
+                    }
+
+                Insert:
+                    var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment) VALUES ");
+
+                    // Добавление всех значений в запрос
+                    var valueList = new List<string>();
+                    foreach (var entry in dates)
+                    {
+                        valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
+                    }
+
+                    // Соединяем все строки значений в один запрос
+                    query.Append(string.Join(", ", valueList));
+                    query.Append(";");
+
+                    // Создаем команду и выполняем запрос
+                    using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
+                    {
+                        cmd.ExecuteNonQuery();
+                        MessageBox.Show("Данные записаны");
+                    }
                 }
-                catch(MySqlException ex)
+                catch (Exception ex)
                 {
-                    goto Insert;
+                    MessageBox.Show(ex.Message);
                 }
-
-            Insert:
-                var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment) VALUES ");
-
-                // Добавление всех значений в запрос
-                var valueList = new List<string>();
-                foreach (var entry in dates)
-                {
-                    valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{ entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
-                }
-
-                // Соединяем все строки значений в один запрос
-                query.Append(string.Join(", ", valueList));
-                query.Append(";");
-
-                // Создаем команду и выполняем запрос
-                using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
-                {
-                    cmd.ExecuteNonQuery();
-                    MessageBox.Show("Данные записаны");
-                }
+                finally { await _mCon.CloseAsync(); }
             }
-            catch(Exception ex)
+            else
             {
-                MessageBox.Show(ex.Message);
+                //try
+                //{
+                //    try
+                //    {
+                //        await _mCon.OpenAsync();
+                //    }
+                //    catch (MySqlException ex)
+                //    {
+                //        goto Update;
+                //    }
+
+                //Update:
+                    //var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment) VALUES ");
+
+                    //// Добавление всех значений в запрос
+                    //var valueList = new List<string>();
+                    //foreach (var entry in dates)
+                    //{
+                    //    valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
+                    //}
+
+                    //// Соединяем все строки значений в один запрос
+                    //query.Append(string.Join(", ", valueList));
+                    //query.Append(";");
+
+                    //// Создаем команду и выполняем запрос
+                    //using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
+                    //{
+                    //    cmd.ExecuteNonQuery();
+                    //    MessageBox.Show("Данные записаны");
+                    //}
+                //}
+                //catch (Exception ex)
+                //{
+                //    MessageBox.Show(ex.Message);
+                //}
+                //finally { await _mCon.CloseAsync(); }
             }
-            finally { await _mCon.CloseAsync(); }
+
         }
 
         public async Task<string[]> GetComments()
@@ -324,5 +384,14 @@ namespace Downtime_table
             return null;
         }
 
+        public bool GetBoolIsNewData()
+        {
+            return isNewData;
+        }
+
+        public List<Date> GetListDate()
+        {
+            return dates;
+        }
     }
 }
