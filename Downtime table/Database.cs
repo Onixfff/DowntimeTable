@@ -265,7 +265,7 @@ namespace Downtime_table
                 var valueList = new List<string>();
                 foreach (var entry in dates)
                 {
-                    valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', { entry.Difference}, '{entry.IdTypeDowntime}' '{entry.Comments.Replace("'", "''")}')");
+                    valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{ entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
                 }
 
                 // Соединяем все строки значений в один запрос
