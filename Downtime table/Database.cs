@@ -295,6 +295,7 @@ namespace Downtime_table
                     {
                         cmd.ExecuteNonQuery();
                         MessageBox.Show("Данные записаны");
+                        isNewData = false;
                     }
                 }
                 catch (Exception ex)
@@ -305,43 +306,7 @@ namespace Downtime_table
             }
             else
             {
-                //try
-                //{
-                //    try
-                //    {
-                //        await _mCon.OpenAsync();
-                //    }
-                //    catch (MySqlException ex)
-                //    {
-                //        goto Update;
-                //    }
-
-                //Update:
-                    //var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment) VALUES ");
-
-                    //// Добавление всех значений в запрос
-                    //var valueList = new List<string>();
-                    //foreach (var entry in dates)
-                    //{
-                    //    valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
-                    //}
-
-                    //// Соединяем все строки значений в один запрос
-                    //query.Append(string.Join(", ", valueList));
-                    //query.Append(";");
-
-                    //// Создаем команду и выполняем запрос
-                    //using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
-                    //{
-                    //    cmd.ExecuteNonQuery();
-                    //    MessageBox.Show("Данные записаны");
-                    //}
-                //}
-                //catch (Exception ex)
-                //{
-                //    MessageBox.Show(ex.Message);
-                //}
-                //finally { await _mCon.CloseAsync(); }
+                UpdateAsync();
             }
 
         }
@@ -392,6 +357,71 @@ namespace Downtime_table
         public List<Date> GetListDate()
         {
             return dates;
+        }
+
+        public async void UpdateAsync()
+        {
+            try
+            {
+                try
+                {
+                    await _mCon.OpenAsync();
+                }
+                catch (MySqlException)
+                {
+                    goto Update;
+                }
+
+            Update:
+                string query = "Update downtime set ";
+                query += "idIdle = case ";
+                
+                for(int i = 0; i < dates.Count; i++)
+                {
+                    query += $" WHEN Id = {dates[i].Id} THEN {dates[i].IdTypeDowntime}";
+                }
+
+                query += " else idIdle END,";
+
+                query += "Comment = case ";
+
+                for (int i = 0; i < dates.Count; i++)
+                {
+                    query += $" WHEN Id = {dates[i].Id} THEN '{dates[i].Comments}'";
+                }
+                
+                query += " else Comment END ";
+
+                query += "Where id IN(";
+                
+                for (int i = 0 ; i < dates.Count; i++)
+                {
+                    if(i < dates.Count - 1)
+                    {
+                        query += $"{dates[i].Id},";
+                    }
+                    else
+                    {
+                        query += $"{dates[i].Id}";
+                    }
+                }
+                
+                query += ");";
+
+
+
+                // Создаем команду и выполняем запрос
+                using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
+                {
+                    cmd.ExecuteNonQuery();
+                    MessageBox.Show("Данные обновлены");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally { await _mCon.CloseAsync(); }
         }
     }
 }
