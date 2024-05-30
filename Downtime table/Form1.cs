@@ -10,14 +10,12 @@ namespace Downtime_table
         private Database _database = new Database();
         private DateTime _currentDate = DateTime.Now;
         private List<string> _comments;
-        private ViewComments _viewComments;
         private DataSet _dataSet = new DataSet();
         private bool _isOpen = false;
 
         public Form1()
         {
             InitializeComponent();
-            _viewComments = new ViewComments(this);
         }
 
         private async void Form1_Load(object sender, EventArgs e)
