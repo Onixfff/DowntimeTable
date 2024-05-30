@@ -12,6 +12,8 @@ namespace Downtime_table
         private List<string> _comments;
         private DataSet _dataSet = new DataSet();
         private bool _isOpen = false;
+        private int rowIndex;
+        private int columnIndex;
 
         public Form1()
         {
@@ -73,6 +75,9 @@ namespace Downtime_table
             {
                 if (dataGridView1.CurrentCell.ColumnIndex == 3)
                 {
+                    int currentRowIndex = dataGridView1.CurrentCell.RowIndex;
+                    int currentColumnIndex = dataGridView1.CurrentCell.ColumnIndex;
+
                     TextBox tb = e.Control as TextBox;
                     if (tb != null)
                     {
@@ -85,6 +90,27 @@ namespace Downtime_table
                                 _comments.Clear();
                             }
                             _comments = new List<string>(info);
+                        }
+
+                        if(tb.Text.Length > 3)
+                        {
+                            if (_isOpen == false)
+                            {
+                                tableLayoutPanel2.ColumnStyles.Clear();
+                                tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+                                tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 0F));
+                                _isOpen = true;
+                            }
+                        }
+                        else
+                        {
+                            if (_isOpen == true)
+                            {
+                                tableLayoutPanel2.ColumnStyles.Clear();
+                                tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+                                tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 0F));
+                                _isOpen = false;
+                            }
                         }
                     }
                 }
@@ -120,6 +146,8 @@ namespace Downtime_table
                     case 3:
                         if (e.ColumnIndex == dataGridView1.Columns["Комментарий"].Index)
                         {
+                            columnIndex = e.ColumnIndex;
+                            rowIndex = e.RowIndex;
                             id = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells[targetId].Value);
                             var comment = dataGridView1.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
                             _database.ChangeData(id, comment);
@@ -196,13 +224,13 @@ namespace Downtime_table
             _dataSet.Tables.Clear();
             DataTable dt = new DataTable();
 
-            dt.Columns.Add(new DataColumn("Комментирии", typeof(string)));
+            dt.Columns.Add(new DataColumn("Комментарии", typeof(string)));
             dt.Columns[0].ReadOnly = true;
 
             for (int i = 0; i < comments.Count; i++)
             {
                 DataRow dr = dt.NewRow();
-                dr["Комментирии"] = comments[i];
+                dr["Комментарии"] = comments[i];
                 dt.Rows.Add(dr);
             }
 
@@ -210,6 +238,25 @@ namespace Downtime_table
             _dataSet.Tables.Add(dt);
 
             dataGridView2.DataSource = _dataSet.Tables[0];
+        }
+
+        private void dataGridView2_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                // Попытка получить значение из ячейки
+                try
+                {
+                    string comment = dataGridView2.Rows[e.RowIndex].Cells["Комментарии"].Value.ToString();
+                    // Дополнительные действия с idIdle
+                    dataGridView1.Rows[rowIndex].Cells[columnIndex].Value = comment;
+                }
+                catch (Exception ex)
+                {
+                    // Обработка ошибки преобразования или других исключений
+                    MessageBox.Show("Ошибка при получении значения: " + ex.Message);
+                }
+            }
         }
     }
 }
