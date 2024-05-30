@@ -11,11 +11,13 @@ namespace Downtime_table
         private DateTime _currentDate = DateTime.Now;
         private List<string> _comments;
         private ViewComments _viewComments;
+        private DataSet _dataSet = new DataSet();
+        private bool _isOpen = false;
 
         public Form1()
         {
             InitializeComponent();
-            _viewComments = new ViewComments();
+            _viewComments = new ViewComments(this);
         }
 
         private async void Form1_Load(object sender, EventArgs e)
@@ -123,28 +125,44 @@ namespace Downtime_table
                             id = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells[targetId].Value);
                             var comment = dataGridView1.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
                             _database.ChangeData(id, comment);
-
-                            if (comment.Length > 3)
+                            if (comment.Length >= 3)
                             {
-                                bool isUpdate = false;
-                                if (_viewComments.IsDisposed == true || _viewComments.Visible == false)
-                                {
-                                    _viewComments = new ViewComments();
-                                    isUpdate = true;
-                                }
-
                                 List<string> similar = FindMatchingSentences(comment);
-                                if (_comments != null && isUpdate == false)
-                                {
-                                    _viewComments.ChangeListComments(similar);
-                                }
-                                else
-                                {
-                                    _viewComments.ChangeListComments(similar);
-                                    _viewComments.Show();
-                                }
 
-                                dataGridView1.Focus(); // Устанавливаем фокус обратно на DataGridView
+                                if (_comments != null)
+                                {
+                                    if(similar.Count > 0)
+                                    {
+                                        if (_isOpen == false)
+                                        {
+                                            tableLayoutPanel2.ColumnStyles.Clear();
+                                            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 80F));
+                                            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+                                            _isOpen = true;
+                                            ChangeDateGridView(similar);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if(_isOpen == true)
+                                        {
+                                            tableLayoutPanel2.ColumnStyles.Clear();
+                                            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+                                            tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 0F));
+                                            _isOpen = false;
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                if(_isOpen)
+                                {
+                                    tableLayoutPanel2.ColumnStyles.Clear();
+                                    tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+                                    tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 0F));
+                                    _isOpen = false;
+                                }
                             }
                         }
                     break;
@@ -173,6 +191,27 @@ namespace Downtime_table
                 }
             }
             return matchingSentences;
+        }
+
+        private void ChangeDateGridView(List<string> comments)
+        {
+            _dataSet.Tables.Clear();
+            DataTable dt = new DataTable();
+
+            dt.Columns.Add(new DataColumn("Комментирии", typeof(string)));
+            dt.Columns[0].ReadOnly = true;
+
+            for (int i = 0; i < comments.Count; i++)
+            {
+                DataRow dr = dt.NewRow();
+                dr["Комментирии"] = comments[i];
+                dt.Rows.Add(dr);
+            }
+
+            _dataSet.Clear();
+            _dataSet.Tables.Add(dt);
+
+            dataGridView2.DataSource = _dataSet.Tables[0];
         }
     }
 }
