@@ -7,20 +7,23 @@ namespace Downtime_table
 {
     public partial class Form1 : Form
     {
-        Database database = new Database();
-        DateTime currentDate = DateTime.Now;
+        private Database _database = new Database();
+        private DateTime _currentDate = DateTime.Now;
+        private List<string> _comments;
+        private ViewComments _viewComments;
 
         public Form1()
         {
             InitializeComponent();
+            _viewComments = new ViewComments();
         }
 
         private async void Form1_Load(object sender, EventArgs e)
         {
-            DataSet ds = await database.GetMain(currentDate, dataGridView1);
+            DataSet ds = await _database.GetMain(_currentDate, dataGridView1);
             dataGridView1.DataSource = ds.Tables[0];
 
-            List<DateIdle> idles = await database.GetIdles();
+            List<DateIdle> idles = await _database.GetIdles();
 
             DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
             cmbColumn.HeaderText = "Вид простоя";
@@ -41,9 +44,9 @@ namespace Downtime_table
             dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 3;
             dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
 
-            if (!database.GetBoolIsNewData())
+            if (!_database.GetBoolIsNewData())
             {
-                List<Date> dates = database.GetListDate();
+                List<Date> dates = _database.GetListDate();
                 for(int i = 0; i < dates.Count; i++)
                 {
                     foreach (DataGridViewRow row in dataGridView1.Rows)
@@ -57,16 +60,11 @@ namespace Downtime_table
                     }
                 }
             }
-            else
-            {
-
-            }
-
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            database.InsertData();
+            _database.InsertData();
         }
 
         private async void dataGridView1_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
@@ -78,19 +76,15 @@ namespace Downtime_table
                     TextBox tb = e.Control as TextBox;
                     if (tb != null)
                     {
-                        tb.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-                        tb.AutoCompleteSource = AutoCompleteSource.CustomSource;
-                        AutoCompleteStringCollection data = new AutoCompleteStringCollection();
-                        var info = await database.GetComments();
+                        var info = await _database.GetComments();
                         
                         if(info != null)
                         {
-                            data.AddRange(info);
-                            tb.AutoCompleteCustomSource = data;
-                        }
-                        else
-                        {
-
+                            if(_comments != null)
+                            {
+                                _comments.Clear();
+                            }
+                            _comments = new List<string>(info);
                         }
                     }
                 }
@@ -120,7 +114,7 @@ namespace Downtime_table
                         {
                             id = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells[targetId].Value);
                             int idIdle = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells["cmbVidProstoya"].Value);;
-                            database.ChangeData(id, idIdle);
+                            _database.ChangeData(id, idIdle);
                         }
                     break;
                     case 3:
@@ -128,11 +122,57 @@ namespace Downtime_table
                         {
                             id = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells[targetId].Value);
                             var comment = dataGridView1.Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString();
-                            database.ChangeData(id, comment);
+                            _database.ChangeData(id, comment);
+
+                            if (comment.Length > 3)
+                            {
+                                bool isUpdate = false;
+                                if (_viewComments.IsDisposed == true || _viewComments.Visible == false)
+                                {
+                                    _viewComments = new ViewComments();
+                                    isUpdate = true;
+                                }
+
+                                List<string> similar = FindMatchingSentences(comment);
+                                if (_comments != null && isUpdate == false)
+                                {
+                                    _viewComments.ChangeListComments(similar);
+                                }
+                                else
+                                {
+                                    _viewComments.ChangeListComments(similar);
+                                    _viewComments.Show();
+                                }
+
+                                dataGridView1.Focus(); // Устанавливаем фокус обратно на DataGridView
+                            }
                         }
                     break;
                 }
             }
+        }
+
+        private List<string> FindMatchingSentences(string input)
+        {
+            List<string> matchingSentences = new List<string>();
+            string[] words = input.ToLower().Split(' ');
+            foreach (string sentence in _comments)
+            {
+                bool matchFound = true;
+                foreach (string word in words)
+                {
+                    if (!sentence.ToLower().Contains(word))
+                    {
+                        matchFound = false;
+                        break;
+                    }
+                }
+                if (matchFound)
+                {
+                    matchingSentences.Add(sentence);
+                }
+            }
+            return matchingSentences;
         }
     }
 }
