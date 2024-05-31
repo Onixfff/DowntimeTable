@@ -1,18 +1,13 @@
 ﻿using MySql.Data.MySqlClient;
-using MySql.Data.Types;
+using MySqlX.XDevAPI.Relational;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.ComponentModel;
 using System.Configuration;
 using System.Data;
 using System.Linq;
-using System.Security.Cryptography;
+using System.Runtime.InteropServices.ComTypes;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Xml.Linq;
-using static Downtime_table.Form1;
 
 namespace Downtime_table
 {
@@ -21,7 +16,8 @@ namespace Downtime_table
         private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["local"].ConnectionString);
         private DataSet _dsMain;
         private DataSet _dsIdle;
-        public List<Date> dates = new List<Date>();
+        public List<Date> datesNew = new List<Date>();
+        private List<Date> datesPast = new List<Date>();
         private List<string> comments;
         private bool isNewData;
         List<DateIdle> idles;
@@ -48,42 +44,58 @@ namespace Downtime_table
 
             }
 #else
-            if ((timeOfDay >= TimeSpan.FromHours(8) && timeOfDay < TimeSpan.FromHours(20)) ||
-                (timeOfDay >= TimeSpan.FromHours(20) || timeOfDay < TimeSpan.FromHours(8)))
+            if (currentTime.TimeOfDay >= TimeSpan.FromHours(8) && currentTime.TimeOfDay < TimeSpan.FromHours(20))
             {
-                sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{lastDate.ToString("yyyy-MM-dd")} 20:00:00'), downtime AS ( SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
-                sqlDownTime = $"select * from downTime where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{lastDate.ToString("yyyy-MM-dd")} 20:00:00'";
+                sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'), downtime AS ( SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
+                sqlDownTime = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
             }
-            else
+            else if (timeOfDay >= TimeSpan.FromHours(20) && nextData.TimeOfDay < TimeSpan.FromHours(8))
             {
                 sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' or Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'),downtime AS (SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
                 sqlDownTime = "select * from downTime where Timestamp >= '{currentTime.ToString(\"yyyy-MM-dd\")} 20:00:00' or Timestamp < '{nextData.ToString(\"yyyy-MM-dd\")} 08:00:00'";
+            }
+            else
+            {
+                throw new Exception("Ошибка в интервале времени");
             }
 #endif
             try
             {
 
-                DataTable dt = new DataTable("MyTable");
+                DataTable dtNew = new DataTable("MyTable");
 
-                dt.Columns.Add(new DataColumn("id", typeof(int)));
-                dt.Columns[0].ReadOnly = true;
-                dt.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
-                dt.Columns[1].ReadOnly = true;
-                dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
-                dt.Columns[2].ReadOnly = true;
-                dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
+                dtNew.Columns.Add(new DataColumn("id", typeof(int)));
+                dtNew.Columns[0].ReadOnly = true;
+                dtNew.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
+                dtNew.Columns[1].ReadOnly = true;
+                dtNew.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
+                dtNew.Columns[2].ReadOnly = true;
+                dtNew.Columns.Add(new DataColumn("Комментарий", typeof(string)));
                 
-                dates.Clear();
-                dates = await CheckData(sqlDownTime);
-                
-                if(dates != null && dates.Count > 0)
-                {
-                    isNewData = false;
-                }
-                else
-                {
-                    isNewData = true;
-                }
+                datesNew.Clear();
+                datesNew = await CheckData(sqlDownTime);
+
+                DataTable dtPast = new DataTable("MyTable");
+
+                dtPast.Columns.Add(new DataColumn("id", typeof(int)));
+                dtPast.Columns[0].ReadOnly = true;
+                dtPast.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
+                dtPast.Columns[1].ReadOnly = true;
+                dtPast.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
+                dtPast.Columns[2].ReadOnly = true;
+                dtPast.Columns.Add(new DataColumn("Комментарий", typeof(string)));
+
+                datesPast.Clear();
+                datesPast = await CheckData(sqlDownTime);
+
+                //if(dates != null && dates.Count > 0)
+                //{
+                //    isNewData = false;
+                //}
+                //else
+                //{
+                //    isNewData = true;
+                //}
 
                 try
                 {
@@ -95,9 +107,9 @@ namespace Downtime_table
                 }
 
             Select:
-                if (isNewData)
-                {
-                    dates.Clear();
+                //if (isNewData)
+                //{
+                    datesNew.Clear();
 
                     using (MySqlCommand command = new MySqlCommand(sql, _mCon))
                     {
@@ -105,35 +117,48 @@ namespace Downtime_table
                         {
                             while (await reader.ReadAsync())
                             {
-                                dates.Add(new Date(
+                                datesNew.Add(new Date(
                                         reader.GetInt32(0),
                                         reader.GetDateTime(1),
-                                        reader.GetTimeSpan(2)));
+                                        reader.GetTimeSpan(2),
+                                        false));
                             }
                             reader.Close();
                         }
                     }
-                }
-                else
+                //}
+
+                for (int i = 0; i < datesNew.Count; i++)
                 {
-
+                    DataRow dr = dtNew.NewRow();
+                    dr["id"] = datesNew[i].Id;
+                    dr["Время начала"] = datesNew[i].Timestamp;
+                    dr["Время простоя"] = datesNew[i].Difference;
+                    dr["Комментарий"] = datesNew[i].Comments;
+                    dtNew.Rows.Add(dr);
                 }
 
-                for (int i = 0; i < dates.Count; i++)
+                for(int i = 0; i < datesPast.Count; i++)
                 {
-                    DataRow dr = dt.NewRow();
-                    dr["id"] = dates[i].Id;
-                    dr["Время начала"] = dates[i].Timestamp;
-                    dr["Время простоя"] = dates[i].Difference;
-                    dr["Комментарий"] = dates[i].Comments;
-                    dt.Rows.Add(dr);
+                    DataRow dr = dtPast.NewRow();
+                    dr["id"] = datesPast[i].Id;
+                    dr["Время начала"] = datesPast[i].Timestamp;
+                    dr["Время простоя"] = datesPast[i].Difference;
+                    dr["Комментарий"] = datesPast[i].Comments;
+                    dtPast.Rows.Add(dr);
                 }
 
-                ds.Tables.Add(dt);
-                _dsMain = ds;
+                DataSet dsPast = new DataSet();
+
+                ds.Tables.Add(dtNew);
+                dsPast.Tables.Add(dtPast);
+                //_dsMain = ds;
+
+                _dsMain = DeletesIdenticalData(ds, dsPast);
+
 
                 dataGridView1.DataSource = ds;
-                return ds;
+                return _dsMain;
 
             }
             catch (Exception ex)
@@ -173,7 +198,8 @@ namespace Downtime_table
                                     reader.GetDateTime(1),
                                     reader.GetTimeSpan(2),
                                     reader.GetInt32(3),
-                                    reader.GetString(4)));
+                                    reader.GetString(4),
+                                    true));
                         }
                         reader.Close();
                     }
@@ -240,11 +266,11 @@ namespace Downtime_table
         public void ChangeData(int id, int idIdle)
         {
 
-            for (int i = 0; i < dates.Count; i++)
+            for (int i = 0; i < datesNew.Count; i++)
             {
-                if (dates[i].Id == id)
+                if (datesNew[i].Id == id)
                 {
-                    dates[i].IdTypeDowntime = idIdle;
+                    datesNew[i].IdTypeDowntime = idIdle;
                 }
             }
         }
@@ -252,18 +278,20 @@ namespace Downtime_table
         public void ChangeData(int id, string comment)
         {
 
-            for(int i = 0; i < dates.Count; i++)
+            for(int i = 0; i < datesNew.Count; i++)
             {
-                if (dates[i].Id == id)
+                if (datesNew[i].Id == id)
                 {
-                    dates[i].Comments = comment;
+                    datesNew[i].Comments = comment;
                 }
             }
         }
 
         public async void InsertData()
         {
-            if (isNewData)
+            isNewData = true;
+
+            if (isNewData )
             {
                 try
                 {
@@ -281,7 +309,7 @@ namespace Downtime_table
 
                     // Добавление всех значений в запрос
                     var valueList = new List<string>();
-                    foreach (var entry in dates)
+                    foreach (var entry in datesNew)
                     {
                         valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
                     }
@@ -356,7 +384,7 @@ namespace Downtime_table
 
         public List<Date> GetListDate()
         {
-            return dates;
+            return datesPast;
         }
 
         public async void UpdateAsync()
@@ -376,33 +404,33 @@ namespace Downtime_table
                 string query = "Update downtime set ";
                 query += "idIdle = case ";
                 
-                for(int i = 0; i < dates.Count; i++)
+                for(int i = 0; i < datesNew.Count; i++)
                 {
-                    query += $" WHEN Id = {dates[i].Id} THEN {dates[i].IdTypeDowntime}";
+                    query += $" WHEN Id = {datesNew[i].Id} THEN {datesNew[i].IdTypeDowntime}";
                 }
 
                 query += " else idIdle END,";
 
                 query += "Comment = case ";
 
-                for (int i = 0; i < dates.Count; i++)
+                for (int i = 0; i < datesNew.Count; i++)
                 {
-                    query += $" WHEN Id = {dates[i].Id} THEN '{dates[i].Comments}'";
+                    query += $" WHEN Id = {datesNew[i].Id} THEN '{datesNew[i].Comments}'";
                 }
                 
                 query += " else Comment END ";
 
                 query += "Where id IN(";
                 
-                for (int i = 0 ; i < dates.Count; i++)
+                for (int i = 0 ; i < datesNew.Count; i++)
                 {
-                    if(i < dates.Count - 1)
+                    if(i < datesNew.Count - 1)
                     {
-                        query += $"{dates[i].Id},";
+                        query += $"{datesNew[i].Id},";
                     }
                     else
                     {
-                        query += $"{dates[i].Id}";
+                        query += $"{datesNew[i].Id}";
                     }
                 }
                 
@@ -423,5 +451,50 @@ namespace Downtime_table
             }
             finally { await _mCon.CloseAsync(); }
         }
+
+        private DataSet DeletesIdenticalData(DataSet datasetNew, DataSet datasetPast)
+        {
+            var table1 = datasetNew.Tables[0];
+            var table2 = datasetPast.Tables[0];
+            DataTable resultTable = table1.Clone(); // Клонируем структуру таблицы table1
+            DataSet resultDataSet = new DataSet();
+
+            foreach (DataRow row1 in table1.Rows)
+            {
+                DateTime column1Value = (DateTime)row1["Время начала"];
+                string column2Value = row1["Комментарий"].ToString();
+
+                string filterExpression = $"[Время начала] = #{column1Value:yyyy-MM-dd HH:mm:ss}#";
+                DataRow[] matchingRows = table2.Select(filterExpression);
+
+                if (matchingRows.Length > 0)
+                {
+                    // Если совпадающая строка найдена в table2, берем первую строку, так как значения "Время начала" уникальны
+                    DataRow row2 = matchingRows[0];
+
+                    if (!string.IsNullOrEmpty(row2["Комментарий"].ToString()))
+                    {
+                        // Если "Комментарий" не пустой в row2, берем row2
+                        resultTable.ImportRow(row2);
+                    }
+                    else
+                    {
+                        // Если "Комментарий" пустой в row2, берем row1
+                        resultTable.ImportRow(row1);
+                    }
+                }
+                else if (!string.IsNullOrEmpty(column2Value))
+                {
+                    // Если совпадающая строка не найдена в table2 и "Комментарий" не пустой в table1
+                    resultTable.ImportRow(row1);
+                }
+            }
+
+            // Добавляем результирующую таблицу в DataSet
+            resultDataSet.Tables.Add(resultTable);
+            return resultDataSet;
+        }
+
+
     }
 }

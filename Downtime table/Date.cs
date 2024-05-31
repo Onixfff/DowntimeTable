@@ -1,4 +1,5 @@
 ﻿using MySql.Data.Types;
+using Mysqlx.Crud;
 using System;
 
 namespace Downtime_table
@@ -15,20 +16,24 @@ namespace Downtime_table
 
         public string Comments { get; set; }
 
-        public Date(int id, DateTime timestamp, TimeSpan difference)
+        public bool IsUpdate { get; set; }
+
+        public Date(int id, DateTime timestamp, TimeSpan difference, bool isUpdate)
         {
             Id = id;
             Timestamp = timestamp;
             Difference = difference;
+            
         }
 
-        public Date(int id, DateTime timestamp, TimeSpan difference, int idTypeDowntime, string comments)
+        public Date(int id, DateTime timestamp, TimeSpan difference, int idTypeDowntime, string comments, bool isUpdate)
         {
             Id = id;
             Timestamp = timestamp;
             Difference = difference;
             IdTypeDowntime = idTypeDowntime;
             Comments = comments;
+            IsUpdate = isUpdate;
         }
     }
 }
