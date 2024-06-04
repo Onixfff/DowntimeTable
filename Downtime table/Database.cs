@@ -336,7 +336,6 @@ namespace Downtime_table
                 using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
                 {
                     cmd.ExecuteNonQuery();
-                    MessageBox.Show("Данные записаны");
                 }
             }
             catch (Exception ex)
@@ -451,7 +450,7 @@ namespace Downtime_table
                 using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
                 {
                     cmd.ExecuteNonQuery();
-                    MessageBox.Show("Данные обновлены");
+                    MessageBox.Show("Данные занесены в базу данных", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
