@@ -320,11 +320,13 @@ namespace Downtime_table
 
                 // Добавление всех значений в запрос
                 var valueList = new List<string>();
+                int countInt = 0;
                 foreach (var entry in datesNew)
                 {
                     if (entry._isPastData == false)
                     {
                         valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
+                        countInt++;
                     }
                 }
 
@@ -332,10 +334,13 @@ namespace Downtime_table
                 query.Append(string.Join(", ", valueList));
                 query.Append(";");
 
-                // Создаем команду и выполняем запрос
-                using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
+                if (countInt > 0)
                 {
-                    cmd.ExecuteNonQuery();
+                    // Создаем команду и выполняем запрос
+                    using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
                 }
             }
             catch (Exception ex)
