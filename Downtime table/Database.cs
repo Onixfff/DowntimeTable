@@ -1,4 +1,6 @@
-﻿using MySql.Data.MySqlClient;
+﻿using Google.Protobuf.WellKnownTypes;
+using K4os.Compression.LZ4.Encoders;
+using MySql.Data.MySqlClient;
 using MySqlX.XDevAPI.Relational;
 using System;
 using System.Collections.Generic;
@@ -120,8 +122,7 @@ namespace Downtime_table
                             datesNew.Add(new Date(
                                     reader.GetInt32(0),
                                     reader.GetDateTime(1),
-                                    reader.GetTimeSpan(2),
-                                    false));
+                                    reader.GetTimeSpan(2)));
                         }
                         reader.Close();
                     }
@@ -198,8 +199,7 @@ namespace Downtime_table
                                     reader.GetDateTime(1),
                                     reader.GetTimeSpan(2),
                                     reader.GetInt32(3),
-                                    reader.GetString(4),
-                                    true));
+                                    reader.GetString(4)));
                         }
                         reader.Close();
                     }
@@ -265,10 +265,17 @@ namespace Downtime_table
 
         public void ChangeData(int id, int idIdle)
         {
-
             for (int i = 0; i < datesNew.Count; i++)
             {
                 if (datesNew[i].Id == id)
+                {
+                    datesNew[i].IdTypeDowntime = idIdle;
+                }
+            }
+
+            for(int i = 0; i < datesPast.Count; i++)
+            {
+                if (datesPast[i].Id == id)
                 {
                     datesNew[i].IdTypeDowntime = idIdle;
                 }
@@ -283,6 +290,14 @@ namespace Downtime_table
                 if (datesNew[i].Id == id)
                 {
                     datesNew[i].Comments = comment;
+                }
+            }
+
+            for (int i = 0; i < datesPast.Count; i++)
+            {
+                if (datesPast[i].Id == id)
+                {
+                    datesPast[i].Comments = comment;
                 }
             }
         }
@@ -307,7 +322,7 @@ namespace Downtime_table
                 var valueList = new List<string>();
                 foreach (var entry in datesNew)
                 {
-                    if (entry.IsUpdate == true)
+                    if (entry._isPastData == false)
                     {
                         valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
                     }
@@ -322,7 +337,6 @@ namespace Downtime_table
                 {
                     cmd.ExecuteNonQuery();
                     MessageBox.Show("Данные записаны");
-                    isNewData = false;
                 }
             }
             catch (Exception ex)
@@ -453,10 +467,10 @@ namespace Downtime_table
             var table2 = datasetPast.Tables[0];
             DataTable resultTable = table1.Clone(); // Клонируем структуру таблицы table1
             DataSet resultDataSet = new DataSet();
-
-            foreach (DataRow row1 in table1.Rows)
+            int FixedIdRemov = 0;
+            for(int i = 0; i < table1.Rows.Count; i++)
             {
-                DateTime column1Value = (DateTime)row1["Время начала"];
+                DateTime column1Value = (DateTime)table1.Rows[i]["Время начала"];
                 string filterExpression = $"[Время начала] = #{column1Value:yyyy-MM-dd HH:mm:ss}#";
                 DataRow[] matchingRows = table2.Select(filterExpression);
 
@@ -465,16 +479,93 @@ namespace Downtime_table
                     // Если совпадающая строка найдена в table2, берем первую строку из matchingRows
                     DataRow row2 = matchingRows[0];
                     resultTable.ImportRow(row2);
+                    datesNew.RemoveAt(i - FixedIdRemov);
+                    FixedIdRemov++;
                 }
                 else
                 {
                     // Если совпадающая строка не найдена в table2, берем row1 из table1
-                    resultTable.ImportRow(row1);
+                    resultTable.ImportRow(table1.Rows[i]);
                 }
             }
             // Добавляем результирующую таблицу в DataSet
             resultDataSet.Tables.Add(resultTable);
             return resultDataSet;
         }
+
+        public bool ChecksFieldsAreFilledIn()
+        {
+            bool checkDatesNew = true, checkDatesPast = true;
+
+            for (int i = 0; i < datesNew.Count; i++)
+            {
+                if (datesNew[i].Comments != null)
+                {
+                    if (datesNew[i].IdTypeDowntime >= 0)
+                    {
+                        checkDatesNew = true;
+                    }
+                    else
+                    {
+                        checkDatesNew = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    checkDatesNew = false;
+                    break;
+                }
+            }
+
+            for (int i = 0; i < datesPast.Count; i++)
+            {
+                if (datesPast[i].Comments != null)
+                {
+                    if (datesPast[i].IdTypeDowntime >= 0)
+                    {
+                        checkDatesPast = true;
+                    }
+                    else
+                    {
+                        checkDatesPast = false;
+                        break;
+                    }
+                }
+                else
+                {
+                    checkDatesPast = false;
+                    break;
+                }
+            }
+
+
+            if ( checkDatesPast  && checkDatesNew)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public TimeSpan GetDowntime()
+        {
+            TimeSpan time = new TimeSpan();
+
+            for(int i = 0; i < datesNew.Count; i++)
+            {
+                time += datesNew[i].Difference;
+            }
+
+            for(int i = 0; i < datesPast.Count; i++)
+            {
+                time += datesPast[i].Difference;
+            }
+
+            return time;
+        }
+
     }
 }

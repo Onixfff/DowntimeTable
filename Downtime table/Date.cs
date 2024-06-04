@@ -16,24 +16,39 @@ namespace Downtime_table
 
         public string Comments { get; set; }
 
-        public bool IsUpdate { get; set; }
-
-        public Date(int id, DateTime timestamp, TimeSpan difference, bool isUpdate)
+        public bool _isPastData { get; set; }
+        
+        /// <summary>
+        /// Возвращает новые данные
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="timestamp"></param>
+        /// <param name="difference"></param>
+        public Date(int id, DateTime timestamp, TimeSpan difference)
         {
             Id = id;
             Timestamp = timestamp;
             Difference = difference;
-            
+            _isPastData = false;
+            IdTypeDowntime = -1;
         }
 
-        public Date(int id, DateTime timestamp, TimeSpan difference, int idTypeDowntime, string comments, bool isUpdate)
+        /// <summary>
+        /// Возвращает данные занесенные в таблицу
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="timestamp"></param>
+        /// <param name="difference"></param>
+        /// <param name="idTypeDowntime"></param>
+        /// <param name="comments"></param>
+        public Date(int id, DateTime timestamp, TimeSpan difference, int idTypeDowntime, string comments)
         {
             Id = id;
             Timestamp = timestamp;
             Difference = difference;
             IdTypeDowntime = idTypeDowntime;
             Comments = comments;
-            IsUpdate = isUpdate;
+            _isPastData = true;
         }
     }
 }

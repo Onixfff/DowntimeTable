@@ -69,11 +69,20 @@ namespace Downtime_table
                     }
                 }
             }
+            var time = _database.GetDowntime();
+            labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours}:{time.Minutes}:{time.Seconds}) пропусков";
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            _database.InsertData();
+            if (_database.ChecksFieldsAreFilledIn())
+            {
+                _database.InsertData();
+            }
+            else
+            {
+                MessageBox.Show("Заполните все пустые поля", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         private async void dataGridView1_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
