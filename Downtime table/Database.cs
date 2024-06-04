@@ -71,7 +71,7 @@ namespace Downtime_table
                 dtNew.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
                 dtNew.Columns[2].ReadOnly = true;
                 dtNew.Columns.Add(new DataColumn("Комментарий", typeof(string)));
-                
+
                 datesNew.Clear();
                 datesNew = await CheckData(sqlDownTime);
 
@@ -109,23 +109,23 @@ namespace Downtime_table
             Select:
                 //if (isNewData)
                 //{
-                    datesNew.Clear();
+                datesNew.Clear();
 
-                    using (MySqlCommand command = new MySqlCommand(sql, _mCon))
+                using (MySqlCommand command = new MySqlCommand(sql, _mCon))
+                {
+                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                     {
-                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                        while (await reader.ReadAsync())
                         {
-                            while (await reader.ReadAsync())
-                            {
-                                datesNew.Add(new Date(
-                                        reader.GetInt32(0),
-                                        reader.GetDateTime(1),
-                                        reader.GetTimeSpan(2),
-                                        false));
-                            }
-                            reader.Close();
+                            datesNew.Add(new Date(
+                                    reader.GetInt32(0),
+                                    reader.GetDateTime(1),
+                                    reader.GetTimeSpan(2),
+                                    false));
                         }
+                        reader.Close();
                     }
+                }
                 //}
 
                 for (int i = 0; i < datesNew.Count; i++)
@@ -138,7 +138,7 @@ namespace Downtime_table
                     dtNew.Rows.Add(dr);
                 }
 
-                for(int i = 0; i < datesPast.Count; i++)
+                for (int i = 0; i < datesPast.Count; i++)
                 {
                     DataRow dr = dtPast.NewRow();
                     dr["id"] = datesPast[i].Id;
@@ -165,7 +165,7 @@ namespace Downtime_table
             {
                 MessageBox.Show(ex.Message);
             }
-            finally {await _mCon.CloseAsync(); }
+            finally { await _mCon.CloseAsync(); }
 
             return null;
         }
@@ -178,10 +178,10 @@ namespace Downtime_table
 
                 try
                 {
-                    if(_mCon.State == ConnectionState.Closed)
+                    if (_mCon.State == ConnectionState.Closed)
                         await _mCon.OpenAsync();
                 }
-                catch(MySqlException)
+                catch (MySqlException)
                 {
                     goto Select;
                 }
@@ -254,12 +254,12 @@ namespace Downtime_table
                 }
 
             }
-            catch(Exception ex) 
+            catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
             finally { await _mCon.CloseAsync(); }
-            
+
             return null;
         }
 
@@ -278,7 +278,7 @@ namespace Downtime_table
         public void ChangeData(int id, string comment)
         {
 
-            for(int i = 0; i < datesNew.Count; i++)
+            for (int i = 0; i < datesNew.Count; i++)
             {
                 if (datesNew[i].Id == id)
                 {
@@ -289,54 +289,49 @@ namespace Downtime_table
 
         public async void InsertData()
         {
-            isNewData = true;
-
-            if (isNewData )
+            try
             {
                 try
                 {
-                    try
-                    {
-                        await _mCon.OpenAsync();
-                    }
-                    catch (MySqlException ex)
-                    {
-                        goto Insert;
-                    }
+                    await _mCon.OpenAsync();
+                }
+                catch (MySqlException ex)
+                {
+                    goto Insert;
+                }
 
-                Insert:
-                    var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment) VALUES ");
+            Insert:
+                var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment) VALUES ");
 
-                    // Добавление всех значений в запрос
-                    var valueList = new List<string>();
-                    foreach (var entry in datesNew)
+                // Добавление всех значений в запрос
+                var valueList = new List<string>();
+                foreach (var entry in datesNew)
+                {
+                    if (entry.IsUpdate == true)
                     {
                         valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
                     }
-
-                    // Соединяем все строки значений в один запрос
-                    query.Append(string.Join(", ", valueList));
-                    query.Append(";");
-
-                    // Создаем команду и выполняем запрос
-                    using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
-                    {
-                        cmd.ExecuteNonQuery();
-                        MessageBox.Show("Данные записаны");
-                        isNewData = false;
-                    }
                 }
-                catch (Exception ex)
+
+                // Соединяем все строки значений в один запрос
+                query.Append(string.Join(", ", valueList));
+                query.Append(";");
+
+                // Создаем команду и выполняем запрос
+                using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
                 {
-                    MessageBox.Show(ex.Message);
+                    cmd.ExecuteNonQuery();
+                    MessageBox.Show("Данные записаны");
+                    isNewData = false;
                 }
-                finally { await _mCon.CloseAsync(); }
             }
-            else
+            catch (Exception ex)
             {
-                UpdateAsync();
+                MessageBox.Show(ex.Message);
             }
+            finally { await _mCon.CloseAsync(); }
 
+            UpdateAsync(datesPast);
         }
 
         public async Task<string[]> GetComments()
@@ -387,7 +382,7 @@ namespace Downtime_table
             return datesPast;
         }
 
-        public async void UpdateAsync()
+        public async void UpdateAsync(List<Date> datesNew)
         {
             try
             {
@@ -462,39 +457,24 @@ namespace Downtime_table
             foreach (DataRow row1 in table1.Rows)
             {
                 DateTime column1Value = (DateTime)row1["Время начала"];
-                string column2Value = row1["Комментарий"].ToString();
-
                 string filterExpression = $"[Время начала] = #{column1Value:yyyy-MM-dd HH:mm:ss}#";
                 DataRow[] matchingRows = table2.Select(filterExpression);
 
                 if (matchingRows.Length > 0)
                 {
-                    // Если совпадающая строка найдена в table2, берем первую строку, так как значения "Время начала" уникальны
+                    // Если совпадающая строка найдена в table2, берем первую строку из matchingRows
                     DataRow row2 = matchingRows[0];
-
-                    if (!string.IsNullOrEmpty(row2["Комментарий"].ToString()))
-                    {
-                        // Если "Комментарий" не пустой в row2, берем row2
-                        resultTable.ImportRow(row2);
-                    }
-                    else
-                    {
-                        // Если "Комментарий" пустой в row2, берем row1
-                        resultTable.ImportRow(row1);
-                    }
+                    resultTable.ImportRow(row2);
                 }
-                else if (!string.IsNullOrEmpty(column2Value))
+                else
                 {
-                    // Если совпадающая строка не найдена в table2 и "Комментарий" не пустой в table1
+                    // Если совпадающая строка не найдена в table2, берем row1 из table1
                     resultTable.ImportRow(row1);
                 }
             }
-
             // Добавляем результирующую таблицу в DataSet
             resultDataSet.Tables.Add(resultTable);
             return resultDataSet;
         }
-
-
     }
 }
