@@ -23,54 +23,62 @@ namespace Downtime_table
         private async void Form1_Load(object sender, EventArgs e)
         {
             DataSet ds = await _database.GetMain(_currentDate, dataGridView1);
-            dataGridView1.DataSource = ds.Tables[0];
-
-            List<DateIdle> idles = await _database.GetIdles();
-
-            DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
-            cmbColumn.HeaderText = "Вид простоя";
-            cmbColumn.Name = "cmbVidProstoya";
-            cmbColumn.DisplayMember = "TypeDowntime"; // Текст, который будет отображаться в ComboBox
-            cmbColumn.ValueMember = "IdTypeDowntime"; // Значение, которое будет использоваться в качестве идентификатора
-
-            foreach (var idle in idles)
+            if (ds == null)
             {
-                cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
+                MessageBox.Show("Ошибка получения данных", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            dataGridView1.Columns.Add(cmbColumn);
-
-            dataGridView1.Columns["id"].DisplayIndex = 0;
-            dataGridView1.Columns["Время начала"].DisplayIndex = 1;
-            dataGridView1.Columns["Время простоя"].DisplayIndex = 2;
-            dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 3;
-            dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
-
-            List<Date> dates = _database.GetListDate();
-            for(int i = 0; i < dates.Count; i++)
+            else
             {
-                foreach (DataGridViewRow row in dataGridView1.Rows)
+
+                dataGridView1.DataSource = ds.Tables[0];
+
+                List<DateIdle> idles = await _database.GetIdles();
+
+                DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
+                cmbColumn.HeaderText = "Вид простоя";
+                cmbColumn.Name = "cmbVidProstoya";
+                cmbColumn.DisplayMember = "TypeDowntime"; // Текст, который будет отображаться в ComboBox
+                cmbColumn.ValueMember = "IdTypeDowntime"; // Значение, которое будет использоваться в качестве идентификатора
+
+                foreach (var idle in idles)
                 {
-                    if (row.Cells["cmbVidProstoya"] is DataGridViewComboBoxCell comboBoxCell)
+                    cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
+                }
+
+                dataGridView1.Columns.Add(cmbColumn);
+
+                dataGridView1.Columns["id"].DisplayIndex = 0;
+                dataGridView1.Columns["Время начала"].DisplayIndex = 1;
+                dataGridView1.Columns["Время простоя"].DisplayIndex = 2;
+                dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 3;
+                dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
+
+                List<Date> dates = _database.GetListDate();
+                for (int i = 0; i < dates.Count; i++)
+                {
+                    foreach (DataGridViewRow row in dataGridView1.Rows)
                     {
-                        // Установка выбранного значения для ComboBox в каждой строке
-                        if (dates[i].Timestamp == Convert.ToDateTime(row.Cells["Время начала"].Value))
+                        if (row.Cells["cmbVidProstoya"] is DataGridViewComboBoxCell comboBoxCell)
                         {
-                            var data = dates[i].IdTypeDowntime;
-                            if(data != null && data > 0)
+                            // Установка выбранного значения для ComboBox в каждой строке
+                            if (dates[i].Timestamp == Convert.ToDateTime(row.Cells["Время начала"].Value))
                             {
-                                comboBoxCell.Value = data;
-                            }
-                            else
-                            {
-                                comboBoxCell = null;
+                                var data = dates[i].IdTypeDowntime;
+                                if (data != null && data > 0)
+                                {
+                                    comboBoxCell.Value = data;
+                                }
+                                else
+                                {
+                                    comboBoxCell = null;
+                                }
                             }
                         }
                     }
                 }
+                var time = _database.GetDowntime();
+                labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours}:{time.Minutes}:{time.Seconds}) пропусков";
             }
-            var time = _database.GetDowntime();
-            labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours}:{time.Minutes}:{time.Seconds}) пропусков";
         }
 
         private void button1_Click(object sender, EventArgs e)

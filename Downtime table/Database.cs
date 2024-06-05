@@ -15,7 +15,7 @@ namespace Downtime_table
 {
     public class Database
     {
-        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["local"].ConnectionString);
+        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["server"].ConnectionString);
         private DataSet _dsMain;
         private DataSet _dsIdle;
         public List<Date> datesNew = new List<Date>();
