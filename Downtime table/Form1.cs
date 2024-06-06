@@ -1,5 +1,7 @@
-﻿using System;
+﻿using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using System.Windows.Forms;
 
@@ -7,6 +9,7 @@ namespace Downtime_table
 {
     public partial class Form1 : Form
     {
+        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString);
         private Database _database = new Database();
         private DateTime _currentDate = DateTime.Now;
         private List<string> _comments;
@@ -32,7 +35,7 @@ namespace Downtime_table
 
                 dataGridView1.DataSource = ds.Tables[0];
 
-                List<DateIdle> idles = await _database.GetIdles();
+                List<DateIdle> idles = await _database.GetIdles(_mCon);
 
                 DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
                 cmbColumn.HeaderText = "Вид простоя";
@@ -85,7 +88,7 @@ namespace Downtime_table
         {
             if (_database.ChecksFieldsAreFilledIn())
             {
-                _database.InsertData();
+                _database.InsertData(_mCon);
             }
             else
             {
@@ -105,7 +108,7 @@ namespace Downtime_table
                     TextBox tb = e.Control as TextBox;
                     if (tb != null)
                     {
-                        var info = await _database.GetComments();
+                        var info = await _database.GetComments(_mCon);
                         
                         if(info != null)
                         {

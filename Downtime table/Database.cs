@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Runtime.InteropServices.ComTypes;
 using System.Threading.Tasks;
@@ -16,6 +17,7 @@ namespace Downtime_table
     public class Database
     {
         private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["server"].ConnectionString);
+        private MySqlConnection _mConLocal = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString);
         private DataSet _dsMain;
         private DataSet _dsIdle;
         public List<Date> datesNew = new List<Date>();
@@ -32,7 +34,7 @@ namespace Downtime_table
             DateTime nextData = currentTime.AddDays(1);
             DateTime lastDate = currentTime.AddDays(-1);
             TimeSpan timeOfDay = currentTime.TimeOfDay;
-            idles = await GetIdles();
+            idles = await GetIdles(_mConLocal);
 #if (!DEBUG)
             if ((timeOfDay >= TimeSpan.FromHours(8) && timeOfDay < TimeSpan.FromHours(20)) ||
                 (timeOfDay >= TimeSpan.FromHours(20) || timeOfDay < TimeSpan.FromHours(8)))
@@ -75,7 +77,7 @@ namespace Downtime_table
                 dtNew.Columns.Add(new DataColumn("Комментарий", typeof(string)));
 
                 datesNew.Clear();
-                datesNew = await CheckData(sqlDownTime);
+                datesNew = await CheckData(sqlDownTime, _mCon);
 
                 DataTable dtPast = new DataTable("MyTable");
 
@@ -88,16 +90,7 @@ namespace Downtime_table
                 dtPast.Columns.Add(new DataColumn("Комментарий", typeof(string)));
 
                 datesPast.Clear();
-                datesPast = await CheckData(sqlDownTime);
-
-                //if(dates != null && dates.Count > 0)
-                //{
-                //    isNewData = false;
-                //}
-                //else
-                //{
-                //    isNewData = true;
-                //}
+                datesPast = await CheckData(sqlDownTime, _mConLocal);
 
                 try
                 {
@@ -109,8 +102,7 @@ namespace Downtime_table
                 }
 
             Select:
-                //if (isNewData)
-                //{
+
                 datesNew.Clear();
 
                 using (MySqlCommand command = new MySqlCommand(sql, _mCon))
@@ -127,7 +119,6 @@ namespace Downtime_table
                         reader.Close();
                     }
                 }
-                //}
 
                 for (int i = 0; i < datesNew.Count; i++)
                 {
@@ -153,7 +144,6 @@ namespace Downtime_table
 
                 ds.Tables.Add(dtNew);
                 dsPast.Tables.Add(dtPast);
-                //_dsMain = ds;
 
                 _dsMain = DeletesIdenticalData(ds, dsPast);
 
@@ -171,7 +161,7 @@ namespace Downtime_table
             return null;
         }
 
-        public async Task<List<Date>> CheckData(string query)
+        public async Task<List<Date>> CheckData(string query, MySqlConnection mCon)
         {
             List<Date> datesLocal = new List<Date>();
             try
@@ -179,8 +169,8 @@ namespace Downtime_table
 
                 try
                 {
-                    if (_mCon.State == ConnectionState.Closed)
-                        await _mCon.OpenAsync();
+                    if (mCon.State == ConnectionState.Closed)
+                        await mCon.OpenAsync();
                 }
                 catch (MySqlException)
                 {
@@ -188,7 +178,7 @@ namespace Downtime_table
                 }
 
             Select:
-                using (MySqlCommand command = new MySqlCommand(query, _mCon))
+                using (MySqlCommand command = new MySqlCommand(query, mCon))
                 {
                     using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                     {
@@ -211,13 +201,13 @@ namespace Downtime_table
             }
             finally
             {
-                await _mCon.CloseAsync();
+                await mCon.CloseAsync();
             }
 
             return datesLocal;
         }
 
-        public async Task<List<DateIdle>> GetIdles()
+        public async Task<List<DateIdle>> GetIdles(MySqlConnection _mCon)
         {
             try
             {
@@ -302,7 +292,7 @@ namespace Downtime_table
             }
         }
 
-        public async void InsertData()
+        public async void InsertData(MySqlConnection _mCon)
         {
             try
             {
@@ -349,10 +339,10 @@ namespace Downtime_table
             }
             finally { await _mCon.CloseAsync(); }
 
-            UpdateAsync(datesPast);
+            UpdateAsync(datesPast, _mConLocal);
         }
 
-        public async Task<string[]> GetComments()
+        public async Task<string[]> GetComments(MySqlConnection _mCon)
         {
             try
             {
@@ -400,7 +390,7 @@ namespace Downtime_table
             return datesPast;
         }
 
-        public async void UpdateAsync(List<Date> datesNew)
+        public async void UpdateAsync(List<Date> datesNew, MySqlConnection _mCon)
         {
             try
             {
@@ -492,6 +482,7 @@ namespace Downtime_table
                     resultTable.ImportRow(table1.Rows[i]);
                 }
             }
+
             // Добавляем результирующую таблицу в DataSet
             resultDataSet.Tables.Add(resultTable);
             return resultDataSet;
