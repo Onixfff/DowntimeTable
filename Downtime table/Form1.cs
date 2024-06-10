@@ -297,5 +297,16 @@ namespace Downtime_table
                 }
             }
         }
+
+        private void toolStripButton1_Click(object sender, EventArgs e)
+        {
+            pictureBox1.BringToFront();
+            pictureBox1.Visible = true;
+            button1.Enabled = false;
+            _database.ClearData();
+            Thread.Sleep(500);
+            Form1_Load(sender, e);
+            button1.Enabled = true;
+        }
     }
 }

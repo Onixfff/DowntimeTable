@@ -596,7 +596,7 @@ namespace Downtime_table
             return time;
         }
 
-        private void ClearData()
+        public void ClearData()
         {
             newDates.Clear();
             datesPast.Clear();
