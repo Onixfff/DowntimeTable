@@ -1,14 +1,9 @@
-﻿using Google.Protobuf.WellKnownTypes;
-using K4os.Compression.LZ4.Encoders;
-using MySql.Data.MySqlClient;
-using MySqlX.XDevAPI.Relational;
+﻿using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
-using System.Diagnostics.Eventing.Reader;
-using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -23,11 +18,14 @@ namespace Downtime_table
         public List<Date> datesNew = new List<Date>();
         private List<Date> datesPast = new List<Date>();
         private List<string> comments;
+        private List<newDate> newDates = new List<newDate>();
         private bool isNewData;
         List<DateIdle> idles;
 
         public async Task<DataSet> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
+            newDates.Clear();
+            datesPast.Clear();
             DataSet ds = new DataSet();
             string sql, sqlDownTime;
             DateTime currentTime = dateTime;
@@ -50,7 +48,8 @@ namespace Downtime_table
 #else
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
-                sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'), downtime AS ( SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
+                sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
+                //sql = $"with TimeSampling as (SELECT * FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'), downtime AS ( SELECT t1.DBID, t1.timestamp, timediff( TIMEDIFF(t2.timestamp, t1.timestamp), '00:07:30') as \"Разница\" FROM (SELECT *, LEAD(DBID) OVER (ORDER BY DBID) AS next_DBID FROM TimeSampling ) t1 JOIN TimeSampling t2 ON t1.next_DBID = t2.DBID WHERE TIMEDIFF(t2.timestamp, t1.timestamp) > '00:07:30') select * from downtime;";
                 sqlDownTime = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
             }
             else if (timeOfDay >= new TimeSpan(20, 30, 0) && nextData.TimeOfDay < new TimeSpan(8,29,0))
@@ -77,7 +76,6 @@ namespace Downtime_table
                 dtNew.Columns.Add(new DataColumn("Комментарий", typeof(string)));
 
                 datesNew.Clear();
-                datesNew = await CheckData(sqlDownTime, _mCon);
 
                 DataTable dtPast = new DataTable("MyTable");
 
@@ -111,23 +109,14 @@ namespace Downtime_table
                     {
                         while (await reader.ReadAsync())
                         {
-                            datesNew.Add(new Date(
-                                    reader.GetInt32(0),
-                                    reader.GetDateTime(1),
-                                    reader.GetTimeSpan(2)));
+                            newDates.Add(new newDate
+                                (
+                                reader.GetInt32(0),
+                                reader.GetDateTime(1)
+                                ));
                         }
                         reader.Close();
                     }
-                }
-
-                for (int i = 0; i < datesNew.Count; i++)
-                {
-                    DataRow dr = dtNew.NewRow();
-                    dr["id"] = datesNew[i].Id;
-                    dr["Время начала"] = datesNew[i].Timestamp;
-                    dr["Время простоя"] = datesNew[i].Difference;
-                    dr["Комментарий"] = datesNew[i].Comments;
-                    dtNew.Rows.Add(dr);
                 }
 
                 for (int i = 0; i < datesPast.Count; i++)
@@ -142,8 +131,20 @@ namespace Downtime_table
 
                 DataSet dsPast = new DataSet();
 
-                ds.Tables.Add(dtNew);
+                datesNew = CalculateDowntime(newDates, new TimeSpan(0,7,30));
+                ds.Clear();
                 dsPast.Tables.Add(dtPast);
+
+                for (int i = 0; i < datesNew.Count; i++)
+                {
+                    DataRow dr = dtNew.NewRow();
+                    dr["id"] = datesNew[i].Id;
+                    dr["Время начала"] = datesNew[i].Timestamp;
+                    dr["Время простоя"] = datesNew[i].Difference;
+                    dr["Комментарий"] = datesNew[i].Comments;
+                    dtNew.Rows.Add(dr);
+                }
+                ds.Tables.Add(dtNew);
 
                 _dsMain = DeletesIdenticalData(ds, dsPast);
 
@@ -159,6 +160,24 @@ namespace Downtime_table
             finally { await _mCon.CloseAsync(); }
 
             return null;
+        }
+
+        private List<Date> CalculateDowntime(List<newDate> newDate, TimeSpan difference)
+        {
+            List<Date> datesNew = new List<Date>();
+            for(int i = 0; i < newDate.Count -1; i++)
+            {
+                var dt = newDate[i];
+                var nextDt = newDate[i+1];
+                var result =  nextDt.DateTime - dt.DateTime;
+
+                if (result.TotalSeconds >= difference.TotalSeconds)
+                {
+                    datesNew.Add(new Date(dt.DBIG, dt.DateTime, result));
+                }
+            }
+
+            return datesNew;
         }
 
         public async Task<List<Date>> CheckData(string query, MySqlConnection mCon)
@@ -396,11 +415,35 @@ namespace Downtime_table
             {
                 try
                 {
-                    await _mCon.OpenAsync();
+                    switch (_mCon.State)
+                    {
+                        case ConnectionState.Closed:
+                            await _mCon.OpenAsync();
+                            break;
+                        case ConnectionState.Open:
+                            break;
+                        case ConnectionState.Connecting:
+                            Thread.Sleep(1000);
+                            if(_mCon.State != ConnectionState.Open)
+                            {
+                                throw new Exception();
+                            }
+                            break;
+                        case ConnectionState.Executing:
+                            break;
+                        case ConnectionState.Fetching:
+                            break;
+                        case ConnectionState.Broken:
+                            break;
+                    }
                 }
                 catch (MySqlException)
                 {
                     goto Update;
+                }
+                catch(Exception ex)
+                {
+                    MessageBox.Show("Ошибка подключения\n\n", ex.Message);
                 }
 
             Update:

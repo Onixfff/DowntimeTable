@@ -32,7 +32,7 @@ namespace Downtime_table
             }
             else
             {
-
+                dataGridView1.Columns.Clear();
                 dataGridView1.DataSource = ds.Tables[0];
 
                 List<DateIdle> idles = await _database.GetIdles(_mCon);
@@ -47,7 +47,6 @@ namespace Downtime_table
                 {
                     cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
                 }
-
                 dataGridView1.Columns.Add(cmbColumn);
 
                 dataGridView1.Columns["id"].DisplayIndex = 0;
@@ -89,6 +88,7 @@ namespace Downtime_table
             if (_database.ChecksFieldsAreFilledIn())
             {
                 _database.InsertData(_mCon);
+                Form1_Load(sender, e);
             }
             else
             {
