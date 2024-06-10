@@ -19,6 +19,7 @@ namespace Downtime_table
         private bool _isOpen = false;
         private int rowIndex;
         private int columnIndex;
+        private bool isUpdate = false;
 
         public Form1()
         {
@@ -31,6 +32,7 @@ namespace Downtime_table
 
         private async void Form1_Load(object sender, EventArgs e)
         {
+            isUpdate = true;
             DataSet ds = await _database.GetMain(_currentDate, dataGridView1);
             if (ds == null)
             {
@@ -89,6 +91,7 @@ namespace Downtime_table
                 labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours} : {time.Minutes} : {time.Seconds}) пропусков";
                 button1.Enabled = true;
                 pictureBox1.SendToBack();
+                isUpdate = false;
             }
         }
 
@@ -300,6 +303,9 @@ namespace Downtime_table
 
         private void toolStripButton1_Click(object sender, EventArgs e)
         {
+            if (isUpdate == true)
+                return;
+
             pictureBox1.BringToFront();
             pictureBox1.Visible = true;
             button1.Enabled = false;
