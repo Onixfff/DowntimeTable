@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace Downtime_table
@@ -21,6 +22,7 @@ namespace Downtime_table
         public Form1()
         {
             InitializeComponent();
+            button1.Enabled = false;
         }
 
         private async void Form1_Load(object sender, EventArgs e)
@@ -80,11 +82,14 @@ namespace Downtime_table
                 }
                 var time = _database.GetDowntime();
                 labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours}:{time.Minutes}:{time.Seconds}) пропусков";
+                button1.Enabled = true;
             }
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
+            button1.Enabled = false;
+            Thread.Sleep(500);
             if (_database.ChecksFieldsAreFilledIn())
             {
                 _database.InsertData(_mCon);
@@ -93,6 +98,7 @@ namespace Downtime_table
             else
             {
                 MessageBox.Show("Заполните все пустые поля", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                button1.Enabled = true;
             }
         }
 

@@ -24,8 +24,6 @@ namespace Downtime_table
 
         public async Task<DataSet> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
-            newDates.Clear();
-            datesPast.Clear();
             DataSet ds = new DataSet();
             string sql, sqlDownTime;
             DateTime currentTime = dateTime;
@@ -149,7 +147,7 @@ namespace Downtime_table
                 _dsMain = DeletesIdenticalData(ds, dsPast);
 
 
-                dataGridView1.DataSource = ds;
+                dataGridView1.DataSource = _dsMain;
                 return _dsMain;
 
             }
@@ -286,7 +284,7 @@ namespace Downtime_table
             {
                 if (datesPast[i].Id == id)
                 {
-                    datesNew[i].IdTypeDowntime = idIdle;
+                    datesPast[i].IdTypeDowntime = idIdle;
                 }
             }
         }
@@ -317,11 +315,35 @@ namespace Downtime_table
             {
                 try
                 {
-                    await _mCon.OpenAsync();
+                    switch (_mCon.State)
+                    {
+                        case ConnectionState.Closed:
+                            await _mCon.OpenAsync();
+                            break;
+                        case ConnectionState.Open:
+                            break;
+                        case ConnectionState.Connecting:
+                            Thread.Sleep(1000);
+                            if (_mCon.State != ConnectionState.Open)
+                            {
+                                throw new Exception();
+                            }
+                            break;
+                        case ConnectionState.Executing:
+                            break;
+                        case ConnectionState.Fetching:
+                            break;
+                        case ConnectionState.Broken:
+                            break;
+                    }
                 }
-                catch (MySqlException ex)
+                catch (MySqlException)
                 {
                     goto Insert;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Ошибка подключения\n\n", ex.Message);
                 }
 
             Insert:
@@ -343,22 +365,42 @@ namespace Downtime_table
                 query.Append(string.Join(", ", valueList));
                 query.Append(";");
 
+                string queryUpdate = GetUpdateQuery(datesPast, _mConLocal);
+                bool isComplite = false;
                 if (countInt > 0)
                 {
+                    var queryFull = query.ToString() + queryUpdate;
                     // Создаем команду и выполняем запрос
-                    using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
+                    using (MySqlCommand cmd = new MySqlCommand(queryFull, _mCon))
                     {
                         cmd.ExecuteNonQuery();
+                        isComplite = true;
                     }
                 }
+                else
+                {
+                    using (MySqlCommand cmd = new MySqlCommand(queryUpdate, _mCon))
+                    {
+                        cmd.ExecuteNonQuery();
+                        isComplite = true;
+                    }
+                }
+
+                ClearData();
+
+                if(isComplite)
+                    MessageBox.Show("Данные сохранены", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
-            finally { await _mCon.CloseAsync(); }
+            finally 
+            { 
+                await _mCon.CloseAsync();
+            }
 
-            UpdateAsync(datesPast, _mConLocal);
         }
 
         public async Task<string[]> GetComments(MySqlConnection _mCon)
@@ -409,44 +451,8 @@ namespace Downtime_table
             return datesPast;
         }
 
-        public async void UpdateAsync(List<Date> datesNew, MySqlConnection _mCon)
+        public string GetUpdateQuery(List<Date> datesNew, MySqlConnection _mCon)
         {
-            try
-            {
-                try
-                {
-                    switch (_mCon.State)
-                    {
-                        case ConnectionState.Closed:
-                            await _mCon.OpenAsync();
-                            break;
-                        case ConnectionState.Open:
-                            break;
-                        case ConnectionState.Connecting:
-                            Thread.Sleep(1000);
-                            if(_mCon.State != ConnectionState.Open)
-                            {
-                                throw new Exception();
-                            }
-                            break;
-                        case ConnectionState.Executing:
-                            break;
-                        case ConnectionState.Fetching:
-                            break;
-                        case ConnectionState.Broken:
-                            break;
-                    }
-                }
-                catch (MySqlException)
-                {
-                    goto Update;
-                }
-                catch(Exception ex)
-                {
-                    MessageBox.Show("Ошибка подключения\n\n", ex.Message);
-                }
-
-            Update:
                 string query = "Update downtime set ";
                 query += "idIdle = case ";
                 
@@ -481,21 +487,7 @@ namespace Downtime_table
                 }
                 
                 query += ");";
-
-
-
-                // Создаем команду и выполняем запрос
-                using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
-                {
-                    cmd.ExecuteNonQuery();
-                    MessageBox.Show("Данные занесены в базу данных", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            finally { await _mCon.CloseAsync(); }
+                return query;
         }
 
         private DataSet DeletesIdenticalData(DataSet datasetNew, DataSet datasetPast)
@@ -603,6 +595,12 @@ namespace Downtime_table
             }
 
             return time;
+        }
+
+        private void ClearData()
+        {
+            newDates.Clear();
+            datesPast.Clear();
         }
 
     }
