@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -23,6 +24,9 @@ namespace Downtime_table
         {
             InitializeComponent();
             button1.Enabled = false;
+            var color = Color.FromArgb(255,255,255);
+            pictureBox1.BackColor = color;
+            pictureBox1.BringToFront();
         }
 
         private async void Form1_Load(object sender, EventArgs e)
@@ -80,9 +84,11 @@ namespace Downtime_table
                         }
                     }
                 }
+
                 var time = _database.GetDowntime();
-                labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours}:{time.Minutes}:{time.Seconds}) пропусков";
+                labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours} : {time.Minutes} : {time.Seconds}) пропусков";
                 button1.Enabled = true;
+                pictureBox1.SendToBack();
             }
         }
 

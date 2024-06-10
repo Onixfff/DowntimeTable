@@ -1,4 +1,5 @@
 ﻿using MySql.Data.MySqlClient;
+using MySqlX.XDevAPI.Relational;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -101,6 +102,8 @@ namespace Downtime_table
 
                 datesNew.Clear();
 
+                if (_mCon.State != ConnectionState.Open)
+                    throw new Exception("Ошибка получения данных");
                 using (MySqlCommand command = new MySqlCommand(sql, _mCon))
                 {
                     using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
@@ -582,18 +585,14 @@ namespace Downtime_table
 
         public TimeSpan GetDowntime()
         {
+            var table = _dsMain.Tables[0];
             TimeSpan time = new TimeSpan();
 
-            for(int i = 0; i < datesNew.Count; i++)
+            for(int i = 0; i < table.Rows.Count; i++)
             {
-                time += datesNew[i].Difference;
+                TimeSpan column1Value = (TimeSpan)table.Rows[i]["Время простоя"];
+                time += column1Value;
             }
-
-            for(int i = 0; i < datesPast.Count; i++)
-            {
-                time += datesPast[i].Difference;
-            }
-
             return time;
         }
 
@@ -602,6 +601,5 @@ namespace Downtime_table
             newDates.Clear();
             datesPast.Clear();
         }
-
     }
 }
