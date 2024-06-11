@@ -14,6 +14,9 @@ namespace Downtime_table
     {
         private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["server"].ConnectionString);
         private MySqlConnection _mConLocal = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString);
+        private int _minusDifferenceHour = 0;
+        private int _minusDifferenceMinut = 7;
+        private int _minusDifferenceSecond = 30;
         private DataSet _dsMain;
         private DataSet _dsIdle;
         public List<Date> datesNew = new List<Date>();
@@ -104,6 +107,7 @@ namespace Downtime_table
 
                 if (_mCon.State != ConnectionState.Open)
                     throw new Exception("Ошибка получения данных");
+
                 using (MySqlCommand command = new MySqlCommand(sql, _mCon))
                 {
                     using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
@@ -132,7 +136,7 @@ namespace Downtime_table
 
                 DataSet dsPast = new DataSet();
 
-                datesNew = CalculateDowntime(newDates, new TimeSpan(0,7,30));
+                datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut,_minusDifferenceSecond));
                 ds.Clear();
                 dsPast.Tables.Add(dtPast);
 
@@ -166,7 +170,9 @@ namespace Downtime_table
         private List<Date> CalculateDowntime(List<newDate> newDate, TimeSpan difference)
         {
             List<Date> datesNew = new List<Date>();
-            for(int i = 0; i < newDate.Count -1; i++)
+            TimeSpan timeSpan = new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut, _minusDifferenceSecond);
+
+            for (int i = 0; i < newDate.Count -1; i++)
             {
                 var dt = newDate[i];
                 var nextDt = newDate[i+1];
@@ -174,7 +180,7 @@ namespace Downtime_table
 
                 if (result.TotalSeconds >= difference.TotalSeconds)
                 {
-                    datesNew.Add(new Date(dt.DBIG, dt.DateTime, result));
+                    datesNew.Add(new Date(dt.DBIG, dt.DateTime, result - timeSpan));
                 }
             }
 
@@ -198,6 +204,7 @@ namespace Downtime_table
                 }
 
             Select:
+
                 using (MySqlCommand command = new MySqlCommand(query, mCon))
                 {
                     using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
@@ -368,9 +375,9 @@ namespace Downtime_table
                 query.Append(string.Join(", ", valueList));
                 query.Append(";");
 
-                string queryUpdate = GetUpdateQuery(datesPast, _mConLocal);
+                string queryUpdate = GetUpdateQuery(datesPast);
                 bool isComplite = false;
-                if (countInt > 0)
+                if (countInt > 0 && queryUpdate != null)
                 {
                     var queryFull = query.ToString() + queryUpdate;
                     // Создаем команду и выполняем запрос
@@ -380,8 +387,18 @@ namespace Downtime_table
                         isComplite = true;
                     }
                 }
-                else
+                else if(countInt > 0 && queryUpdate == null)
                 {
+                    // Создаем команду и выполняем запрос
+                    using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
+                    {
+                        cmd.ExecuteNonQuery();
+                        isComplite = true;
+                    }
+                }
+                else if(countInt <= 0 && queryUpdate != null)
+                {
+                    // Создаем команду и выполняем запрос
                     using (MySqlCommand cmd = new MySqlCommand(queryUpdate, _mCon))
                     {
                         cmd.ExecuteNonQuery();
@@ -454,43 +471,53 @@ namespace Downtime_table
             return datesPast;
         }
 
-        public string GetUpdateQuery(List<Date> datesNew, MySqlConnection _mCon)
+        /// <summary>
+        /// Возвращает string sql для обновления
+        /// </summary>
+        /// <param name="datesNew">Данные для обновления</param>
+        /// <returns>if(datesNew.Count <= 0) return null; else return string sql</returns>
+        public string GetUpdateQuery(List<Date> datesNew)
         {
-                string query = "Update downtime set ";
-                query += "idIdle = case ";
+            string query = "Update downtime set ";
+            query += "idIdle = case ";
                 
-                for(int i = 0; i < datesNew.Count; i++)
+            if(datesNew.Count <= 0)
+            {
+                return null;
+            }
+
+            for(int i = 0; i < datesNew.Count; i++)
+            {
+                query += $" WHEN Id = {datesNew[i].Id} THEN {datesNew[i].IdTypeDowntime}";
+            }
+
+            query += " else idIdle END,";
+
+            query += "Comment = case ";
+
+            for (int i = 0; i < datesNew.Count; i++)
+            {
+                query += $" WHEN Id = {datesNew[i].Id} THEN '{datesNew[i].Comments}'";
+            }
+                
+            query += " else Comment END ";
+
+            query += "Where id IN(";
+                
+            for (int i = 0 ; i < datesNew.Count; i++)
+            {
+                if(i < datesNew.Count - 1)
                 {
-                    query += $" WHEN Id = {datesNew[i].Id} THEN {datesNew[i].IdTypeDowntime}";
+                    query += $"{datesNew[i].Id},";
                 }
-
-                query += " else idIdle END,";
-
-                query += "Comment = case ";
-
-                for (int i = 0; i < datesNew.Count; i++)
+                else
                 {
-                    query += $" WHEN Id = {datesNew[i].Id} THEN '{datesNew[i].Comments}'";
+                    query += $"{datesNew[i].Id}";
                 }
+            }
                 
-                query += " else Comment END ";
-
-                query += "Where id IN(";
-                
-                for (int i = 0 ; i < datesNew.Count; i++)
-                {
-                    if(i < datesNew.Count - 1)
-                    {
-                        query += $"{datesNew[i].Id},";
-                    }
-                    else
-                    {
-                        query += $"{datesNew[i].Id}";
-                    }
-                }
-                
-                query += ");";
-                return query;
+            query += ");";
+            return query;
         }
 
         private DataSet DeletesIdenticalData(DataSet datasetNew, DataSet datasetPast)
