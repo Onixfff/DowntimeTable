@@ -314,5 +314,10 @@ namespace Downtime_table
             Form1_Load(sender, e);
             button1.Enabled = true;
         }
+
+        private void toolStripButton2_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Даниил +79969592819", "Связь по ошибкам", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
     }
 }
