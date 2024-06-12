@@ -13,7 +13,6 @@ namespace Downtime_table
     {
         private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString);
         private Database _database = new Database();
-        private DateTime _currentDate = DateTime.Now;
         private List<string> _comments;
         private DataSet _dataSet = new DataSet();
         private bool _isOpen = false;
@@ -33,7 +32,7 @@ namespace Downtime_table
         private async void Form1_Load(object sender, EventArgs e)
         {
             isUpdate = true;
-            _currentDate = DateTime.Now;
+            DateTime _currentDate = DateTime.Now;
             DataSet ds = await _database.GetMain(_currentDate, dataGridView1);
             if (ds == null)
             {
@@ -319,12 +318,6 @@ namespace Downtime_table
         private void toolStripButton2_Click(object sender, EventArgs e)
         {
             MessageBox.Show("Даниил +79969592819", "Связь по ошибкам", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-
-        private void toolStripButton3_Click(object sender, EventArgs e)
-        {
-            CheckPasses.Form1 form1 = new CheckPasses.Form1();
-            form1.ShowDialog();
         }
     }
 }
