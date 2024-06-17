@@ -23,7 +23,7 @@ namespace Downtime_table
             }
             catch (Exception ex) 
             {
-                MessageBox.Show(ex.Message,"Ошибка",MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(ex.InnerException.ToString(),"Ошибка",MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
