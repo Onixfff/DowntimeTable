@@ -33,6 +33,7 @@ namespace Downtime_table
         private async void Form1_Load(object sender, EventArgs e)
         {
             isUpdate = true;
+            _currentDate = DateTime.Now;
             DataSet ds = await _database.GetMain(_currentDate, dataGridView1);
             if (ds == null)
             {
