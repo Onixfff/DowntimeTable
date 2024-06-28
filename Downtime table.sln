@@ -5,6 +5,8 @@ VisualStudioVersion = 17.9.34622.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Downtime table", "Downtime table\Downtime table.csproj", "{CBF885FD-E757-40E1-B00A-73DACBE35A0C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckPasses", "..\..\Users\ING\YandexDisk-fff-fff01\sss\Общезаводская программа\Общезаводская программа — копия — копия\Aeroblock\CheckPasses\CheckPasses.csproj", "{B5D8E7AB-9CD0-4582-879C-331496C90659}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{CBF885FD-E757-40E1-B00A-73DACBE35A0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CBF885FD-E757-40E1-B00A-73DACBE35A0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CBF885FD-E757-40E1-B00A-73DACBE35A0C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5D8E7AB-9CD0-4582-879C-331496C90659}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5D8E7AB-9CD0-4582-879C-331496C90659}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5D8E7AB-9CD0-4582-879C-331496C90659}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5D8E7AB-9CD0-4582-879C-331496C90659}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

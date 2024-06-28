@@ -320,5 +320,11 @@ namespace Downtime_table
         {
             MessageBox.Show("Даниил +79969592819", "Связь по ошибкам", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+
+        private void toolStripButton3_Click(object sender, EventArgs e)
+        {
+            CheckPasses.Form1 form1 = new CheckPasses.Form1();
+            form1.ShowDialog();
+        }
     }
 }

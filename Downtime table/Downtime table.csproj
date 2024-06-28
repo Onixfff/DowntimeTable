@@ -194,10 +194,19 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\Filled fading balls.gif" />
+    <None Include="Resources\cabinet %281%29.png" />
+    <None Include="Resources\cabinet.png" />
+    <None Include="Resources\folder.png" />
     <Content Include="Resources\icon_35.png" />
     <Content Include="Resources\logo.png" />
     <Content Include="Resources\Update0_64x64-32.png" />
     <Content Include="Resources\WinIco.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Users\ING\YandexDisk-fff-fff01\sss\Общезаводская программа\Общезаводская программа — копия — копия\Aeroblock\CheckPasses\CheckPasses.csproj">
+      <Project>{b5d8e7ab-9cd0-4582-879c-331496c90659}</Project>
+      <Name>CheckPasses</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
