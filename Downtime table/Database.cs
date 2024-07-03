@@ -1,5 +1,4 @@
 ﻿using MySql.Data.MySqlClient;
-using MySqlX.XDevAPI.Relational;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -14,9 +13,18 @@ namespace Downtime_table
     {
         private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["server"].ConnectionString);
         private MySqlConnection _mConLocal = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString);
-        private int _minusDifferenceHour = 0;
-        private int _minusDifferenceMinut = 10;
-        private int _minusDifferenceSecond = 30;
+        
+        
+        private int _minusDifferenceHourTen = 0;
+        private int _minusDifferenceMinutTen = 10;
+        private int _minusDifferenceSecondTen = 30;
+
+        private int _minusDifferenceHourSeven = 0;
+        private int _minusDifferenceMinutSeven = 7;
+        private int _minusDifferenceSecondSeven = 30;
+
+        private bool _isTen = false;
+
         private DataSet _dsMain;
         private DataSet _dsIdle;
         public List<Date> datesNew = new List<Date>();
@@ -132,8 +140,16 @@ namespace Downtime_table
                 }
 
                 DataSet dsPast = new DataSet();
+                
+                if(_isTen == true)
+                {
+                    datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHourTen, _minusDifferenceMinutTen, _minusDifferenceSecondTen));
+                }
+                else
+                {
+                    datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHourSeven, _minusDifferenceMinutSeven, _minusDifferenceSecondSeven));
+                }
 
-                datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut,_minusDifferenceSecond));
                 ds.Clear();
                 dsPast.Tables.Add(dtPast);
 
@@ -173,8 +189,9 @@ namespace Downtime_table
 
             idles = await GetIdles(_mConLocal);
 
-            sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd")} 20:00:00'";
-            sqlDownTime = $"select * from downTime where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd")} 20:00:00'";
+
+            sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd HH:mm::ss")}' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd HH:mm::ss")}'";
+            sqlDownTime = $"select * from downTime where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd HH:mm::ss")} ' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd HH:mm::ss")}'";
             try
             {
 
@@ -247,7 +264,15 @@ namespace Downtime_table
 
                 DataSet dsPast = new DataSet();
 
-                datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut, _minusDifferenceSecond));
+                if (_isTen == true)
+                {
+                    datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHourTen, _minusDifferenceMinutTen, _minusDifferenceSecondTen));
+                }
+                else
+                {
+                    datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHourSeven, _minusDifferenceMinutSeven, _minusDifferenceSecondSeven));
+                }
+
                 ds.Clear();
                 dsPast.Tables.Add(dtPast);
 
@@ -278,10 +303,24 @@ namespace Downtime_table
             return null;
         }
 
+        public void ChengeTen(bool isTen)
+        {
+            _isTen = isTen;
+        }
+
         private List<Date> CalculateDowntime(List<newDate> newDate, TimeSpan difference)
         {
             List<Date> datesNew = new List<Date>();
-            TimeSpan timeSpan = new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut, _minusDifferenceSecond);
+            TimeSpan timeSpan;
+
+            if (_isTen == true)
+            {
+                 timeSpan = new TimeSpan(_minusDifferenceHourTen, _minusDifferenceMinutTen, _minusDifferenceSecondTen);
+            }
+            else
+            {
+                 timeSpan = new TimeSpan(_minusDifferenceHourSeven, _minusDifferenceMinutSeven, _minusDifferenceSecondSeven);
+            }
 
             for (int i = 0; i < newDate.Count -1; i++)
             {

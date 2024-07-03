@@ -6,6 +6,8 @@ using System.Data;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
 
 namespace Downtime_table
 {
@@ -20,22 +22,22 @@ namespace Downtime_table
         private int rowIndex;
         private int columnIndex;
         private bool isUpdate = false;
-
+        private DateTimePicker datePickerFrom1 = new DateTimePicker();
+        private DateTimePicker datePickerBefore1 = new DateTimePicker();
+        private System.Windows.Forms.CheckBox checkBox1 = new System.Windows.Forms.CheckBox();
 
 
         public Form1()
         {
-            InitializeComponent();
+            InitializeComponentc();
             button1.Enabled = false;
             var color = Color.FromArgb(255,255,255);
             pictureBox1.BackColor = color;
             pictureBox1.BringToFront();
 
-            var datePickerBefore1 = new DateTimePicker();
             datePickerBefore1.Format = DateTimePickerFormat.Custom;
             datePickerBefore1.CustomFormat = "hh:mm:ss";
 
-            var datePickerFrom1 = new DateTimePicker();
             datePickerFrom1.Format = DateTimePickerFormat.Custom;
             datePickerFrom1.CustomFormat = "hh:mm:ss";
 
@@ -48,7 +50,7 @@ namespace Downtime_table
             ToolStripControlHost labelFrom = new ToolStripControlHost(new Label());
             ToolStripControlHost labelBefore = new ToolStripControlHost(new Label());
 
-            ToolStripControlHost CheckBoxTimer = new ToolStripControlHost(new CheckBox());
+            ToolStripControlHost CheckBoxTimer = new ToolStripControlHost(checkBox1);
 
         //Добавление форм в toolStrip1
             toolStrip1.Items.Add(separatorTimer);
@@ -61,13 +63,42 @@ namespace Downtime_table
             toolStrip1.Items.Add(separatorTimerBefore);
             CheckBoxTimer.Text = "Время 10:30";
             toolStrip1.Items.Add(CheckBoxTimer);
+            checkBox1.CheckedChanged += CheckBoxTimer_Click;
+        }
+
+        private void CheckBoxTimer_Click(object sender, EventArgs e)
+        {
+            if (sender != null && sender is System.Windows.Forms.CheckBox)
+            {
+                var checkBox = (System.Windows.Forms.CheckBox)sender;
+
+                if (checkBox.CheckState == CheckState.Checked)
+                {
+                    _database.ChengeTen(true);
+                }
+                else
+                {
+                    _database.ChengeTen(false);
+                }
+
+                if (isUpdate == true)
+                    return;
+
+                pictureBox1.BringToFront();
+                pictureBox1.Visible = true;
+                button1.Enabled = false;
+                _database.ClearData();
+                Thread.Sleep(500);
+                Form1_Load(sender, e);
+                button1.Enabled = true;
+            }
         }
 
         private async void Form1_Load(object sender, EventArgs e)
         {
             isUpdate = true;
             _currentDate = DateTime.Now;
-            DataSet ds = await _database.GetMain(_currentDate, dataGridView1);
+            DataSet ds = await _database.GetMain(datePickerFrom1.Value, datePickerBefore1.Value, dataGridView1);
             if (ds == null)
             {
                 MessageBox.Show("Ошибка получения данных", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -358,6 +389,18 @@ namespace Downtime_table
         {
             CheckPasses.Form1 form1 = new CheckPasses.Form1();
             form1.ShowDialog();
+        }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+            // 
+            // Form1
+            // 
+            this.ClientSize = new System.Drawing.Size(1086, 527);
+            this.Name = "Form1";
+            this.ResumeLayout(false);
+
         }
     }
 }
