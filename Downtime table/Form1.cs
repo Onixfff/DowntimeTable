@@ -36,10 +36,10 @@ namespace Downtime_table
             pictureBox1.BringToFront();
 
             datePickerBefore1.Format = DateTimePickerFormat.Custom;
-            datePickerBefore1.CustomFormat = "hh:mm:ss";
+            datePickerBefore1.CustomFormat = "HH:mm:ss";
 
             datePickerFrom1.Format = DateTimePickerFormat.Custom;
-            datePickerFrom1.CustomFormat = "hh:mm:ss";
+            datePickerFrom1.CustomFormat = "HH:mm:ss";
 
             ToolStripSeparator separatorTimer = new ToolStripSeparator();
             ToolStripSeparator separatorTimerBefore = new ToolStripSeparator();

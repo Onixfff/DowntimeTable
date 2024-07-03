@@ -190,8 +190,8 @@ namespace Downtime_table
             idles = await GetIdles(_mConLocal);
 
 
-            sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd HH:mm::ss")}' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd HH:mm::ss")}'";
-            sqlDownTime = $"select * from downTime where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd HH:mm::ss")} ' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd HH:mm::ss")}'";
+            sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd HH:mm:ss")}' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd HH:mm:ss")}'";
+            sqlDownTime = $"select * from downTime where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd HH:mm:ss")} ' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd HH:mm:ss")}'";
             try
             {
 
