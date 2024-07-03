@@ -21,6 +21,8 @@ namespace Downtime_table
         private int columnIndex;
         private bool isUpdate = false;
 
+
+
         public Form1()
         {
             InitializeComponent();
@@ -28,6 +30,37 @@ namespace Downtime_table
             var color = Color.FromArgb(255,255,255);
             pictureBox1.BackColor = color;
             pictureBox1.BringToFront();
+
+            var datePickerBefore1 = new DateTimePicker();
+            datePickerBefore1.Format = DateTimePickerFormat.Custom;
+            datePickerBefore1.CustomFormat = "hh:mm:ss";
+
+            var datePickerFrom1 = new DateTimePicker();
+            datePickerFrom1.Format = DateTimePickerFormat.Custom;
+            datePickerFrom1.CustomFormat = "hh:mm:ss";
+
+            ToolStripSeparator separatorTimer = new ToolStripSeparator();
+            ToolStripSeparator separatorTimerBefore = new ToolStripSeparator();
+
+            ToolStripControlHost datePickerBefore = new ToolStripControlHost(datePickerBefore1);
+            ToolStripControlHost datePickerFrom = new ToolStripControlHost(datePickerFrom1);
+
+            ToolStripControlHost labelFrom = new ToolStripControlHost(new Label());
+            ToolStripControlHost labelBefore = new ToolStripControlHost(new Label());
+
+            ToolStripControlHost CheckBoxTimer = new ToolStripControlHost(new CheckBox());
+
+        //Добавление форм в toolStrip1
+            toolStrip1.Items.Add(separatorTimer);
+            labelFrom.Text = "От";
+            toolStrip1.Items.Add(labelFrom);
+            toolStrip1.Items.Add(datePickerFrom);
+            labelBefore.Text = "До";
+            toolStrip1.Items.Add(labelBefore);
+            toolStrip1.Items.Add(datePickerBefore);
+            toolStrip1.Items.Add(separatorTimerBefore);
+            CheckBoxTimer.Text = "Время 10:30";
+            toolStrip1.Items.Add(CheckBoxTimer);
         }
 
         private async void Form1_Load(object sender, EventArgs e)

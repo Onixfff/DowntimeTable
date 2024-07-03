@@ -164,6 +164,120 @@ namespace Downtime_table
             return null;
         }
 
+        public async Task<DataSet> GetMain(DateTime dateTimeFrom, DateTime dateTimeBefore, DataGridView dataGridView1)
+        {
+            DataSet ds = new DataSet();
+            string sql, sqlDownTime;
+            DateTime currentTimeFrom = dateTimeFrom;
+            DateTime currentTimeBefore = dateTimeBefore;
+
+            idles = await GetIdles(_mConLocal);
+
+            sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd")} 20:00:00'";
+            sqlDownTime = $"select * from downTime where Timestamp >= '{currentTimeFrom.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTimeBefore.ToString("yyyy-MM-dd")} 20:00:00'";
+            try
+            {
+
+                DataTable dtNew = new DataTable("MyTable");
+
+                dtNew.Columns.Add(new DataColumn("id", typeof(int)));
+                dtNew.Columns[0].ReadOnly = true;
+                dtNew.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
+                dtNew.Columns[1].ReadOnly = true;
+                dtNew.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
+                dtNew.Columns[2].ReadOnly = true;
+                dtNew.Columns.Add(new DataColumn("Комментарий", typeof(string)));
+
+                datesNew.Clear();
+
+                DataTable dtPast = new DataTable("MyTable");
+
+                dtPast.Columns.Add(new DataColumn("id", typeof(int)));
+                dtPast.Columns[0].ReadOnly = true;
+                dtPast.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
+                dtPast.Columns[1].ReadOnly = true;
+                dtPast.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
+                dtPast.Columns[2].ReadOnly = true;
+                dtPast.Columns.Add(new DataColumn("Комментарий", typeof(string)));
+
+                datesPast.Clear();
+                datesPast = await CheckData(sqlDownTime, _mConLocal);
+
+                try
+                {
+                    await _mCon.OpenAsync();
+                }
+                catch (MySqlException)
+                {
+                    goto Select;
+                }
+
+            Select:
+
+                datesNew.Clear();
+
+                if (_mCon.State != ConnectionState.Open)
+                    throw new Exception("Ошибка получения данных");
+
+                using (MySqlCommand command = new MySqlCommand(sql, _mCon))
+                {
+                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            newDates.Add(new newDate
+                                (
+                                reader.GetInt32(0),
+                                reader.GetDateTime(1)
+                                ));
+                        }
+                        reader.Close();
+                    }
+                }
+
+                for (int i = 0; i < datesPast.Count; i++)
+                {
+                    DataRow dr = dtPast.NewRow();
+                    dr["id"] = datesPast[i].Id;
+                    dr["Время начала"] = datesPast[i].Timestamp;
+                    dr["Время простоя"] = datesPast[i].Difference;
+                    dr["Комментарий"] = datesPast[i].Comments;
+                    dtPast.Rows.Add(dr);
+                }
+
+                DataSet dsPast = new DataSet();
+
+                datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut, _minusDifferenceSecond));
+                ds.Clear();
+                dsPast.Tables.Add(dtPast);
+
+                for (int i = 0; i < datesNew.Count; i++)
+                {
+                    DataRow dr = dtNew.NewRow();
+                    dr["id"] = datesNew[i].Id;
+                    dr["Время начала"] = datesNew[i].Timestamp;
+                    dr["Время простоя"] = datesNew[i].Difference;
+                    dr["Комментарий"] = datesNew[i].Comments;
+                    dtNew.Rows.Add(dr);
+                }
+                ds.Tables.Add(dtNew);
+
+                _dsMain = DeletesIdenticalData(ds, dsPast);
+
+
+                dataGridView1.DataSource = _dsMain;
+                return _dsMain;
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally { await _mCon.CloseAsync(); }
+
+            return null;
+        }
+
         private List<Date> CalculateDowntime(List<newDate> newDate, TimeSpan difference)
         {
             List<Date> datesNew = new List<Date>();
