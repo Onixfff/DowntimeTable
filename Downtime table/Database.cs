@@ -15,8 +15,8 @@ namespace Downtime_table
         private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["server"].ConnectionString);
         private MySqlConnection _mConLocal = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString);
         private int _minusDifferenceHour = 0;
-        private int _minusDifferenceMinut = 7;
-        private int _minusDifferenceSecond = 30;
+        private int _minusDifferenceMinut = 10;
+        private int _minusDifferenceSecond = 00;
         private DataSet _dsMain;
         private DataSet _dsIdle;
         public List<Date> datesNew = new List<Date>();
