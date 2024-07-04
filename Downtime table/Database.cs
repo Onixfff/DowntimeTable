@@ -714,11 +714,28 @@ namespace Downtime_table
 
         private async Task<List<Recept>> GetServerRecepts()
         {
-            try
+            string query = "SELECT Name FROM spslogger.receptTime group by Name;";
+
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString))
             {
                 try
                 {
-                    await _mConLocal.OpenAsync();
+                    await connection.OpenAsync();
+
+                    List<Recept> recepts = new List<Recept>();
+
+                    using (MySqlCommand command = new MySqlCommand(query, connection))
+                    {
+                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                recepts.Add(new Recept(reader.GetString(0)));
+                            }
+                            reader.Close();
+                        }
+                        return recepts;
+                    }
                 }
                 catch(MySqlException ex)
                 {
@@ -728,30 +745,9 @@ namespace Downtime_table
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-
-                string query = "SELECT Name FROM spslogger.receptTime group by Name;";
-                
-                List<Recept> recepts = new List<Recept>();
-
-                using (MySqlCommand command = new MySqlCommand(query, _mConLocal))
-                {
-                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            recepts.Add(new Recept(reader.GetString(0)));
-                        }
-                        reader.Close();
-                    }
-                    return recepts;
-                }
+                finally { await connection.CloseAsync(); }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            finally { await _mConLocal.CloseAsync(); }
-
+            
             return null;
         }
 
