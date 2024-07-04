@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -33,6 +34,7 @@ namespace Downtime_table
         {
             _ServerRecepts = await GetServerRecepts();
             _LocalPCRecepts = await GetLocalPCRecepts();
+            ChecksDataDifferenceRecepts();
             DataSet ds = new DataSet();
             string sql, sqlDownTime;
             DateTime currentTime = dateTime;
@@ -718,12 +720,15 @@ namespace Downtime_table
                 {
                     await _mConLocal.OpenAsync();
                 }
-                catch
+                catch(MySqlException ex)
                 {
-                    goto Select;
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
 
-            Select:
                 string query = "SELECT Name FROM spslogger.receptTime group by Name;";
                 
                 List<Recept> recepts = new List<Recept>();
@@ -749,15 +754,69 @@ namespace Downtime_table
 
             return null;
         }
+
+        private void ChecksDataDifferenceRecepts()
+        {
+
+            List<Recept> recepts = _LocalPCRecepts.Where(r1 => !_ServerRecepts.Any(r2 => r2.Name == r1.Name)).ToList();
+            
+            if(recepts.Count >= 1)
+            {
+                 ChangeDBReceptTime(recepts);
+            }
+            else
+            {
+                Console.WriteLine("Данные идентичны");
+                return;
+            }
+        }
+
+        private async void ChangeDBReceptTime(List<Recept> recepts)
+        {
+            string sqlInsert = "INSERT INTO spslogger.recepttime (Name, Time) VALUES (@Name, @Time)";
+
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString))
+            {
+                try
+                {
+                    await connection.OpenAsync();
+
+                    using (MySqlCommand command = new MySqlCommand(sqlInsert, connection))
+                    {
+                        command.Parameters.Add("@Name", MySqlDbType.VarChar);
+                        command.Parameters.Add("@Time", MySqlDbType.Time);
+
+                        foreach (Recept recept in recepts)
+                        {
+                            command.Parameters["@Name"].Value = recept.Name;
+                            command.Parameters["@Time"].Value = recept.Time;
+                            await command.ExecuteNonQueryAsync();
+                        }
+                    }
+                }
+                
+                catch (MySqlException ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally { await connection.CloseAsync(); }
+            }
+        }
     }
 
     public class Recept
     {
         public string Name { get; set; }
+        public TimeSpan Time { get; private set; }
 
-        public Recept(string name)
+        public Recept(string name, TimeSpan timeSpan = default(TimeSpan))
         {
             Name = name;
+            Time = timeSpan == default(TimeSpan) ? new TimeSpan(0, 7, 30) : timeSpan;
         }
     }
 }
