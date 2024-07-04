@@ -19,6 +19,7 @@ namespace Downtime_table
         private int rowIndex;
         private int columnIndex;
         private bool isUpdate = false;
+        private List<string> _recepts;
 
         public Form1()
         {
@@ -31,6 +32,8 @@ namespace Downtime_table
 
         private async void Form1_Load(object sender, EventArgs e)
         {
+            _recepts = await _database.GetRecept();
+            ChangeComboBoxRecepts();
             isUpdate = true;
             DateTime _currentDate = DateTime.Now;
             DataSet ds = await _database.GetMain(_currentDate, dataGridView1);
@@ -93,6 +96,11 @@ namespace Downtime_table
                 pictureBox1.SendToBack();
                 isUpdate = false;
             }
+        }
+
+        private void ChangeComboBoxRecepts()
+        {
+            toolStripComboBox1.Items.AddRange(_recepts.ToArray());
         }
 
         private void button1_Click(object sender, EventArgs e)

@@ -21,7 +21,8 @@ namespace Downtime_table
         private DataSet _dsIdle;
         public List<Date> datesNew = new List<Date>();
         private List<Date> datesPast = new List<Date>();
-        private List<string> comments;
+        private List<string> _comments;
+        private List<string> _recepts;
         private List<newDate> newDates = new List<newDate>();
         private bool isNewData;
         List<DateIdle> idles;
@@ -420,6 +421,45 @@ namespace Downtime_table
 
         }
 
+        public async Task<List<string>> GetRecept()
+        {
+            try
+            {
+                try
+                {
+                    await _mCon.OpenAsync();
+                }
+                catch
+                {
+                    goto Select;
+                }
+
+            Select:
+                string query = "SELECT recepte FROM spslogger.error_mas group by recepte;";
+
+                using (MySqlCommand command = new MySqlCommand(query, _mCon))
+                {
+                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    {
+                        _recepts = new List<string>();
+
+                        while (await reader.ReadAsync())
+                        {
+                            _recepts.Add(reader.GetString(0));
+                        }
+                        reader.Close();
+                    }
+                }
+                return _recepts;
+            }
+            catch (Exception ex)
+            {
+                //MessageBox.Show(ex.Message);
+            }
+            finally { await _mCon.CloseAsync(); }
+            return null;
+        }
+
         public async Task<string[]> GetComments(MySqlConnection _mCon)
         {
             try
@@ -440,15 +480,15 @@ namespace Downtime_table
                 {
                     using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                     {
-                        comments = new List<string>();
+                        _comments = new List<string>();
                         while (await reader.ReadAsync())
                         {
-                            comments.Add(reader.GetString(0));
+                            _comments.Add(reader.GetString(0));
                         }
                         reader.Close();
                     }
                 }
-                return comments.ToArray();
+                return _comments.ToArray();
             }
             catch (Exception ex)
             {
