@@ -26,9 +26,13 @@ namespace Downtime_table
         private List<newDate> newDates = new List<newDate>();
         private bool isNewData;
         List<DateIdle> idles;
+        private List<Recept> _LocalPCRecepts = new List<Recept>();
+        private List<Recept> _ServerRecepts = new List<Recept>();
 
         public async Task<DataSet> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
+            _ServerRecepts = await GetServerRecepts();
+            _LocalPCRecepts = await GetLocalPCRecepts();
             DataSet ds = new DataSet();
             string sql, sqlDownTime;
             DateTime currentTime = dateTime;
@@ -647,6 +651,12 @@ namespace Downtime_table
             }
         }
 
+        public void ClearData()
+        {
+            newDates.Clear();
+            datesPast.Clear();
+        }
+
         public TimeSpan GetDowntime()
         {
             var table = _dsMain.Tables[0];
@@ -660,10 +670,94 @@ namespace Downtime_table
             return time;
         }
 
-        public void ClearData()
+        private async Task<List<Recept>> GetLocalPCRecepts()
         {
-            newDates.Clear();
-            datesPast.Clear();
+            try
+            {
+                try
+                {
+                    await _mCon.OpenAsync();
+                }
+                catch
+                {
+                    goto Select;
+                }
+
+            Select:
+
+                string query = "SELECT recepte FROM spslogger.error_mas group by recepte;";
+
+                List<Recept> recepts = new List<Recept>();
+
+                using (MySqlCommand command = new MySqlCommand(query, _mCon))
+                {
+                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            recepts.Add(new Recept(reader.GetString(0)));
+                        }
+                        reader.Close();
+                    }
+                    return recepts;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally { await _mCon.CloseAsync(); }
+            return null;
+        }
+
+        private async Task<List<Recept>> GetServerRecepts()
+        {
+            try
+            {
+                try
+                {
+                    await _mConLocal.OpenAsync();
+                }
+                catch
+                {
+                    goto Select;
+                }
+
+            Select:
+                string query = "SELECT Name FROM spslogger.receptTime group by Name;";
+                
+                List<Recept> recepts = new List<Recept>();
+
+                using (MySqlCommand command = new MySqlCommand(query, _mConLocal))
+                {
+                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            recepts.Add(new Recept(reader.GetString(0)));
+                        }
+                        reader.Close();
+                    }
+                    return recepts;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+            finally { await _mConLocal.CloseAsync(); }
+
+            return null;
+        }
+    }
+
+    public class Recept
+    {
+        public string Name { get; set; }
+
+        public Recept(string name)
+        {
+            Name = name;
         }
     }
 }
