@@ -674,41 +674,52 @@ namespace Downtime_table
 
         private async Task<List<Recept>> GetLocalPCRecepts()
         {
-            try
+            string errorOldBd = "Unknown system variable 'lower_case_table_names'";
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["server"].ConnectionString))
             {
                 try
                 {
-                    await _mCon.OpenAsync();
-                }
-                catch
-                {
-                    goto Select;
-                }
-
-            Select:
-
-                string query = "SELECT recepte FROM spslogger.error_mas group by recepte;";
-
-                List<Recept> recepts = new List<Recept>();
-
-                using (MySqlCommand command = new MySqlCommand(query, _mCon))
-                {
-                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    try
                     {
-                        while (await reader.ReadAsync())
-                        {
-                            recepts.Add(new Recept(reader.GetString(0)));
-                        }
-                        reader.Close();
+                        await connection.OpenAsync();
                     }
-                    return recepts;
+                    catch(MySqlException ex)
+                    {
+                        if(ex.Message == errorOldBd)
+                        {
+                            goto Select;
+                        }
+                        else
+                        {
+                            MessageBox.Show(ex.Message);
+                        }
+                    }
+
+                Select:
+
+                    string query = "SELECT recepte FROM spslogger.error_mas group by recepte;";
+
+                    List<Recept> recepts = new List<Recept>();
+
+                    using (MySqlCommand command = new MySqlCommand(query, connection))
+                    {
+                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                recepts.Add(new Recept(reader.GetString(0)));
+                            }
+                            reader.Close();
+                        }
+                        return recepts;
+                    }
                 }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally { await connection.CloseAsync(); }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            finally { await _mCon.CloseAsync(); }
             return null;
         }
 
