@@ -32,9 +32,11 @@ namespace Downtime_table
 
         public async Task<DataSet> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
+            //Обновляет данные из локольной базы пк на сервер для получения recepts
             _ServerRecepts = await GetServerRecepts();
             _LocalPCRecepts = await GetLocalPCRecepts();
             ChecksDataDifferenceRecepts();
+
             DataSet ds = new DataSet();
             string sql, sqlDownTime;
             DateTime currentTime = dateTime;
@@ -764,17 +766,23 @@ namespace Downtime_table
 
         private void ChecksDataDifferenceRecepts()
         {
-
-            List<Recept> recepts = _LocalPCRecepts.Where(r1 => !_ServerRecepts.Any(r2 => r2.Name == r1.Name)).ToList();
-            
-            if(recepts.Count >= 1)
+            if (_LocalPCRecepts != null && _ServerRecepts != null)
             {
-                 ChangeDBReceptTime(recepts);
+                List<Recept> recepts = _LocalPCRecepts.Where(r1 => !_ServerRecepts.Any(r2 => r2.Name == r1.Name)).ToList();
+
+                if (recepts.Count >= 1)
+                {
+                    ChangeDBReceptTime(recepts);
+                }
+                else
+                {
+                    Console.WriteLine("Данные идентичны");
+                    return;
+                }
             }
             else
             {
-                Console.WriteLine("Данные идентичны");
-                return;
+                MessageBox.Show("Ошибка в обновлении рецептов");
             }
         }
 
