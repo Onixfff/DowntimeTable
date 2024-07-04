@@ -431,40 +431,35 @@ namespace Downtime_table
 
         public async Task<List<string>> GetRecept()
         {
-            try
+            string query = "SELECT Name FROM spslogger.recepttime group by Name;";
+
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString))
             {
                 try
                 {
-                    await _mCon.OpenAsync();
-                }
-                catch
-                {
-                    goto Select;
-                }
+                    await connection.OpenAsync();
 
-            Select:
-                string query = "SELECT recepte FROM spslogger.error_mas group by recepte;";
-
-                using (MySqlCommand command = new MySqlCommand(query, _mCon))
-                {
-                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    using (MySqlCommand command = new MySqlCommand(query, connection))
                     {
-                        _recepts = new List<string>();
-
-                        while (await reader.ReadAsync())
+                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                         {
-                            _recepts.Add(reader.GetString(0));
+                            _recepts = new List<string>();
+
+                            while (await reader.ReadAsync())
+                            {
+                                _recepts.Add(reader.GetString(0));
+                            }
+                            reader.Close();
                         }
-                        reader.Close();
                     }
+                    return _recepts;
                 }
-                return _recepts;
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally { await connection.CloseAsync(); }
             }
-            catch (Exception ex)
-            {
-                //MessageBox.Show(ex.Message);
-            }
-            finally { await _mCon.CloseAsync(); }
             return null;
         }
 
