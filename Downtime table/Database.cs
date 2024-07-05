@@ -429,9 +429,11 @@ namespace Downtime_table
 
         }
 
-        public async Task<List<string>> GetRecept()
+        public async Task<List<Recept>> GetRecept()
         {
-            string query = "SELECT Name FROM spslogger.recepttime group by Name;";
+            string query = "SELECT Name, Time FROM spslogger.recepttime";
+
+            List<Recept> recept = new List<Recept>();
 
             using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString))
             {
@@ -443,16 +445,13 @@ namespace Downtime_table
                     {
                         using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                         {
-                            _recepts = new List<string>();
-
                             while (await reader.ReadAsync())
                             {
-                                _recepts.Add(reader.GetString(0));
+                                recept.Add(new Recept(reader.GetString(0)));
                             }
                             reader.Close();
                         }
                     }
-                    return _recepts;
                 }
                 catch (Exception ex)
                 {
@@ -460,7 +459,7 @@ namespace Downtime_table
                 }
                 finally { await connection.CloseAsync(); }
             }
-            return null;
+            return recept;
         }
 
         public async Task<string[]> GetComments(MySqlConnection _mCon)

@@ -19,7 +19,7 @@ namespace Downtime_table
         private int rowIndex;
         private int columnIndex;
         private bool isUpdate = false;
-        private List<string> _recepts;
+        private List<Recept> _recepts;
 
         public Form1()
         {
@@ -100,7 +100,10 @@ namespace Downtime_table
 
         private void ChangeComboBoxRecepts()
         {
-            toolStripComboBox1.Items.AddRange(_recepts.ToArray());
+            foreach (var item in _recepts)
+            {
+                toolStripComboBox1.Items.Add(item.Name);
+            }
         }
 
         private void button1_Click(object sender, EventArgs e)
