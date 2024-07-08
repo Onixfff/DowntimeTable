@@ -14,12 +14,14 @@ namespace Downtime_table
 
         public int IdTypeDowntime { get; set; }
 
+        public string TypeDownTime { get; set; }
+
         public string Comments { get; set; }
 
         public bool _isPastData { get; set; }
         
         /// <summary>
-        /// Возвращает новые данные
+        /// Заносит новые данные
         /// </summary>
         /// <param name="id"></param>
         /// <param name="timestamp"></param>
@@ -34,19 +36,20 @@ namespace Downtime_table
         }
 
         /// <summary>
-        /// Возвращает данные занесенные в таблицу
+        /// Заносит старые данные
         /// </summary>
         /// <param name="id"></param>
         /// <param name="timestamp"></param>
         /// <param name="difference"></param>
         /// <param name="idTypeDowntime"></param>
         /// <param name="comments"></param>
-        public Date(int id, DateTime timestamp, TimeSpan difference, int idTypeDowntime, string comments)
+        public Date(int id, DateTime timestamp, TimeSpan difference, int idTypeDowntime, string typeDownTime, string comments)
         {
             Id = id;
             Timestamp = timestamp;
             Difference = difference;
             IdTypeDowntime = idTypeDowntime;
+            TypeDownTime = typeDownTime;
             Comments = comments;
             _isPastData = true;
         }

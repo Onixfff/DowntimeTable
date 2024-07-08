@@ -46,7 +46,7 @@ namespace Downtime_table
                 dataGridView1.Columns.Clear();
                 dataGridView1.DataSource = ds.Tables[0];
 
-                List<DateIdle> idles = await _database.GetIdles(_mCon);
+                List< DateIdle> idles = _database.GetIdles();
 
                 DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
                 cmbColumn.HeaderText = "Вид простоя";
@@ -134,7 +134,7 @@ namespace Downtime_table
                     TextBox tb = e.Control as TextBox;
                     if (tb != null)
                     {
-                        var info = await _database.GetComments(_mCon);
+                        var info = await _database.GetCommentsAsync();
                         
                         if(info != null)
                         {

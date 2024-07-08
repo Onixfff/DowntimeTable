@@ -1,5 +1,5 @@
-﻿using MySql.Data.MySqlClient;
-using MySqlX.XDevAPI.Relational;
+﻿using Downtime_table;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -12,9 +12,7 @@ using System.Windows.Forms;
 namespace Downtime_table
 {
     public class Database
-    {
-        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["server"].ConnectionString);
-        private MySqlConnection _mConLocal = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString);
+    {  
         private int _minusDifferenceHour = 0;
         private int _minusDifferenceMinut = 10;
         private int _minusDifferenceSecond = 30;
@@ -26,11 +24,13 @@ namespace Downtime_table
         private List<string> _recepts;
         private List<newDate> newDates = new List<newDate>();
         private bool isNewData;
-        List<DateIdle> idles;
+        List<DateIdle> _idles;
         private List<Recept> _LocalPCRecepts = new List<Recept>();
         private List<Recept> _ServerRecepts = new List<Recept>();
 
-        public async Task<DataSet> GetMain(DateTime dateTime, DataGridView dataGridView1)
+        private string _errorOldBdMessage = "Unknown system variable 'lower_case_table_names'";
+
+        public async void GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
             //Обновляет данные из локольной базы пк на сервер для получения recepts
             _ServerRecepts = await GetServerRecepts();
@@ -38,139 +38,50 @@ namespace Downtime_table
             ChecksDataDifferenceRecepts();
 
             DataSet ds = new DataSet();
-            string sql, sqlDownTime;
+            string sql, sqlLastData;
             DateTime currentTime = dateTime;
             DateTime nextData = currentTime.AddDays(1);
             DateTime lastDate = currentTime.AddDays(-1);
             TimeSpan timeOfDay = currentTime.TimeOfDay;
-            idles = await GetIdles(_mConLocal);
+
+            _idles = await GetIdlesAsync();
+            
 
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
                 sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
-                sqlDownTime = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
+                sqlLastData = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
             }
             else
             {
                 if(currentTime.TimeOfDay <= new TimeSpan(24, 59, 59) && currentTime.TimeOfDay >= new TimeSpan(20, 00, 00))
                 {
                     sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00';";
-                    sqlDownTime = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'";
+                    sqlLastData = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'";
                 }
                 else if(currentTime.TimeOfDay <= new TimeSpan(8, 29, 00))
                 {
                     sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00';";
-                    sqlDownTime = $"select * from downTime where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00'";
+                    sqlLastData = $"select * from downTime where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00'";
 
                 }
                 else
                 {
-                    throw new Exception("Ошибка промежутка времени");
                     sql = null;
-                    sqlDownTime = null;
+                    sqlLastData = null;
+                    throw new Exception("Ошибка времени");
                 }
             }
-            try
-            {
+                
+            datesPast = await ReturnLastDataAsync(sqlLastData);
+            datesNew = await ReturnDataAsync(sql);
 
-                DataTable dtNew = new DataTable("MyTable");
+            datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut,_minusDifferenceSecond));
 
-                dtNew.Columns.Add(new DataColumn("id", typeof(int)));
-                dtNew.Columns[0].ReadOnly = true;
-                dtNew.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
-                dtNew.Columns[1].ReadOnly = true;
-                dtNew.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
-                dtNew.Columns[2].ReadOnly = true;
-                dtNew.Columns.Add(new DataColumn("Комментарий", typeof(string)));
-
-                datesNew.Clear();
-
-                DataTable dtPast = new DataTable("MyTable");
-
-                dtPast.Columns.Add(new DataColumn("id", typeof(int)));
-                dtPast.Columns[0].ReadOnly = true;
-                dtPast.Columns.Add(new DataColumn("Время начала", typeof(DateTime)));
-                dtPast.Columns[1].ReadOnly = true;
-                dtPast.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
-                dtPast.Columns[2].ReadOnly = true;
-                dtPast.Columns.Add(new DataColumn("Комментарий", typeof(string)));
-
-                datesPast.Clear();
-                datesPast = await CheckData(sqlDownTime, _mConLocal);
-
-                try
-                {
-                    await _mCon.OpenAsync();
-                }
-                catch (MySqlException)
-                {
-                    goto Select;
-                }
-
-            Select:
-
-                datesNew.Clear();
-
-                if (_mCon.State != ConnectionState.Open)
-                    throw new Exception("Ошибка получения данных");
-
-                using (MySqlCommand command = new MySqlCommand(sql, _mCon))
-                {
-                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            newDates.Add(new newDate
-                                (
-                                reader.GetInt32(0),
-                                reader.GetDateTime(1)
-                                ));
-                        }
-                        reader.Close();
-                    }
-                }
-
-                for (int i = 0; i < datesPast.Count; i++)
-                {
-                    DataRow dr = dtPast.NewRow();
-                    dr["id"] = datesPast[i].Id;
-                    dr["Время начала"] = datesPast[i].Timestamp;
-                    dr["Время простоя"] = datesPast[i].Difference;
-                    dr["Комментарий"] = datesPast[i].Comments;
-                    dtPast.Rows.Add(dr);
-                }
-
-                DataSet dsPast = new DataSet();
-
-                datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut,_minusDifferenceSecond));
-                ds.Clear();
-                dsPast.Tables.Add(dtPast);
-
-                for (int i = 0; i < datesNew.Count; i++)
-                {
-                    DataRow dr = dtNew.NewRow();
-                    dr["id"] = datesNew[i].Id;
-                    dr["Время начала"] = datesNew[i].Timestamp;
-                    dr["Время простоя"] = datesNew[i].Difference;
-                    dr["Комментарий"] = datesNew[i].Comments;
-                    dtNew.Rows.Add(dr);
-                }
-                ds.Tables.Add(dtNew);
-
-                _dsMain = DeletesIdenticalData(ds, dsPast);
+            _dsMain = DeletesIdenticalData(ds, dsPast);
 
 
-                dataGridView1.DataSource = _dsMain;
-                return _dsMain;
-
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            finally { await _mCon.CloseAsync(); }
-
-            return null;
+            dataGridView1.DataSource = _dsMain;
         }
 
         private List<Date> CalculateDowntime(List<newDate> newDate, TimeSpan difference)
@@ -193,96 +104,162 @@ namespace Downtime_table
             return datesNew;
         }
 
-        public async Task<List<Date>> CheckData(string query, MySqlConnection mCon)
+        private async Task<List<Date>> ReturnLastDataAsync(string query)
         {
             List<Date> datesLocal = new List<Date>();
-            try
-            {
 
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            {
                 try
                 {
-                    if (mCon.State == ConnectionState.Closed)
-                        await mCon.OpenAsync();
-                }
-                catch (MySqlException)
-                {
-                    goto Select;
-                }
-
-            Select:
-
-                using (MySqlCommand command = new MySqlCommand(query, mCon))
-                {
-                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    try
                     {
-                        while (await reader.ReadAsync())
+                        if (connection.State == ConnectionState.Closed)
+                            await connection.OpenAsync();
+                    }
+                    catch (MySqlException ex)
+                    {
+                        if(ex.Message == _errorOldBdMessage)
+                            goto Select;
+                        else
+                            MessageBox.Show(ex.Message);
+                    }
+
+                Select:
+
+                    using (MySqlCommand command = new MySqlCommand(query, connection))
+                    {
+                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                         {
-                            datesLocal.Add(new Date(
-                                    reader.GetInt32(0),
-                                    reader.GetDateTime(1),
-                                    reader.GetTimeSpan(2),
-                                    reader.GetInt32(3),
-                                    reader.GetString(4)));
+                            while (await reader.ReadAsync())
+                            {
+                                datesLocal.Add(new Date(
+                                        reader.GetInt32(0),
+                                        reader.GetDateTime(1),
+                                        reader.GetTimeSpan(2),
+                                        reader.GetInt32(3),
+                                        reader.GetString(4),
+                                        reader.GetString(5)));
+                            }
+                            reader.Close();
                         }
-                        reader.Close();
                     }
                 }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally
+                {
+                    await connection.CloseAsync();
+                }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            finally
-            {
-                await mCon.CloseAsync();
-            }
-
             return datesLocal;
         }
 
-        public async Task<List<DateIdle>> GetIdles(MySqlConnection _mCon)
+        private async Task<List<Date>> ReturnDataAsync(string query)
         {
-            try
+            List<Date> datesLocal = new List<Date>();
+
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
             {
                 try
                 {
-                    await _mCon.OpenAsync();
-                }
-                catch
-                {
-                    goto Select;
-                }
-
-            Select:
-                string query = "SELECT * FROM spslogger.ididles;";
-                List<DateIdle> idles = new List<DateIdle>();
-
-                using (MySqlCommand cmd = new MySqlCommand(query, _mCon))
-                {
-                    using (MySqlDataReader reader = (MySqlDataReader)await cmd.ExecuteReaderAsync())
+                    try
                     {
-                        while (reader.Read())
+                        if (connection.State == ConnectionState.Closed)
+                            await connection.OpenAsync();
+                    }
+                    catch (MySqlException ex)
+                    {
+                        if (ex.Message == _errorOldBdMessage)
+                            goto Select;
+                        else
+                            MessageBox.Show(ex.Message);
+                    }
+
+                Select:
+
+                    using (MySqlCommand command = new MySqlCommand(query, connection))
+                    {
+                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
                         {
-                            idles.Add(
-                                new DateIdle
-                                (
+                            while (await reader.ReadAsync())
+                            {
+                                newDates.Add(new newDate
+                                    (
                                     reader.GetInt32(0),
-                                    reader.GetString(1)
-                                )
-                            );
+                                    reader.GetDateTime(1)
+                                ));
+                            }
+                            reader.Close();
                         }
-                        reader.Close();
-                        return idles;
                     }
                 }
-
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally
+                {
+                    await connection.CloseAsync();
+                }
             }
-            catch (Exception ex)
+            return datesLocal;
+        }
+
+        public async Task<List<DateIdle>> GetIdlesAsync()
+        {
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
             {
-                MessageBox.Show(ex.Message);
-            }
-            finally { await _mCon.CloseAsync(); }
+                try
+                {
+                    try
+                    {
+                        await connection.OpenAsync();
+                    }
+                    catch (MySqlException ex)
+                    {
+                        if (ex.Message == _errorOldBdMessage)
+                        {
+                            goto Select;
+                        }
+                        else
+                        {
+                            MessageBox.Show(ex.Message);
+                        }
+                    }
 
+                Select:
+                    string query = "SELECT * FROM spslogger.ididles;";
+                    List<DateIdle> idles = new List<DateIdle>();
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        using (MySqlDataReader reader = (MySqlDataReader)await cmd.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                idles.Add(
+                                    new DateIdle
+                                    (
+                                        reader.GetInt32(0),
+                                        reader.GetString(1)
+                                    )
+                                );
+                            }
+                            reader.Close();
+                            return idles;
+                        }
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally { await connection.CloseAsync(); }
+            }
             return null;
         }
 
@@ -435,7 +412,7 @@ namespace Downtime_table
 
             List<Recept> recept = new List<Recept>();
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
             {
                 try
                 {
@@ -462,41 +439,51 @@ namespace Downtime_table
             return recept;
         }
 
-        public async Task<string[]> GetComments(MySqlConnection _mCon)
+        public async Task<string[]> GetCommentsAsync()
         {
-            try
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
             {
                 try
                 {
-                    await _mCon.OpenAsync();
-                }
-                catch
-                {
-                    goto Select;
-                }
-
-            Select:
-                string query = "SELECT Comment FROM downtime group by Comment";
-
-                using (MySqlCommand command = new MySqlCommand(query, _mCon))
-                {
-                    using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                    try
                     {
-                        _comments = new List<string>();
-                        while (await reader.ReadAsync())
-                        {
-                            _comments.Add(reader.GetString(0));
-                        }
-                        reader.Close();
+                        await connection.OpenAsync();
                     }
+                    catch (MySqlException ex)
+                    {
+                        if (ex.Message == _errorOldBdMessage)
+                        {
+                            goto Select;
+                        }
+                        else
+                        {
+                            MessageBox.Show(ex.Message);
+                        }
+                    }
+
+                Select:
+                    string query = "SELECT Comment FROM downtime group by Comment";
+
+                    using (MySqlCommand command = new MySqlCommand(query, connection))
+                    {
+                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
+                        {
+                            _comments = new List<string>();
+                            while (await reader.ReadAsync())
+                            {
+                                _comments.Add(reader.GetString(0));
+                            }
+                            reader.Close();
+                        }
+                    }
+                    return _comments.ToArray();
                 }
-                return _comments.ToArray();
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally { await connection.CloseAsync(); }
             }
-            catch (Exception ex)
-            {
-                //MessageBox.Show(ex.Message);
-            }
-            finally { await _mCon.CloseAsync();}
             return null;
         }
 
@@ -559,37 +546,21 @@ namespace Downtime_table
             return query;
         }
 
-        private DataSet DeletesIdenticalData(DataSet datasetNew, DataSet datasetPast)
+        private List<Database> DeletesIdenticalData()
         {
-            var table1 = datasetNew.Tables[0];
-            var table2 = datasetPast.Tables[0];
-            DataTable resultTable = table1.Clone(); // Клонируем структуру таблицы table1
-            DataSet resultDataSet = new DataSet();
-            int FixedIdRemov = 0;
-            for(int i = 0; i < table1.Rows.Count; i++)
-            {
-                DateTime column1Value = (DateTime)table1.Rows[i]["Время начала"];
-                string filterExpression = $"[Время начала] = #{column1Value:yyyy-MM-dd HH:mm:ss}#";
-                DataRow[] matchingRows = table2.Select(filterExpression);
+            List<Database> result = new List<Database>();
 
-                if (matchingRows.Length > 0)
+            int count = 0;
+
+            foreach (var dateNew in datesNew)
+            {
+                foreach(var datePast in datesPast)
                 {
-                    // Если совпадающая строка найдена в table2, берем первую строку из matchingRows
-                    DataRow row2 = matchingRows[0];
-                    resultTable.ImportRow(row2);
-                    datesNew.RemoveAt(i - FixedIdRemov);
-                    FixedIdRemov++;
-                }
-                else
-                {
-                    // Если совпадающая строка не найдена в table2, берем row1 из table1
-                    resultTable.ImportRow(table1.Rows[i]);
+                    if (dateNew
                 }
             }
 
-            // Добавляем результирующую таблицу в DataSet
-            resultDataSet.Tables.Add(resultTable);
-            return resultDataSet;
+            return result;
         }
 
         public bool ChecksFieldsAreFilledIn()
@@ -670,8 +641,7 @@ namespace Downtime_table
 
         private async Task<List<Recept>> GetLocalPCRecepts()
         {
-            string errorOldBd = "Unknown system variable 'lower_case_table_names'";
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["server"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
             {
                 try
                 {
@@ -681,7 +651,7 @@ namespace Downtime_table
                     }
                     catch(MySqlException ex)
                     {
-                        if(ex.Message == errorOldBd)
+                        if(ex.Message == _errorOldBdMessage)
                         {
                             goto Select;
                         }
@@ -723,7 +693,7 @@ namespace Downtime_table
         {
             string query = "SELECT Name FROM spslogger.receptTime group by Name;";
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
             {
                 try
                 {
@@ -784,7 +754,7 @@ namespace Downtime_table
         {
             string sqlInsert = "INSERT INTO spslogger.recepttime (Name, Time) VALUES (@Name, @Time)";
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
             {
                 try
                 {
@@ -815,25 +785,17 @@ namespace Downtime_table
                 finally { await connection.CloseAsync(); }
             }
         }
-    }
 
-    public class DownTimeData
-    {
-        public int Id { get; private set; }
-        public DateTime DateTimeStart { get; private set; }
-        public TimeSpan TimeSpanDownTime { get; private set; }
-        public int TypeDownTimeInt { get; private set; }
-        public string TypeDownTime { get; private set; }
-        public string Comment { get; private set; }
-
-        public DownTimeData(int id, DateTime dateTimeStart, TimeSpan timeSpanDownTime, int typeDownTimeInt, string typeDownTime, string comment)
+        /// <summary>
+        /// Возвращает LIST DateIdle
+        /// </summary>
+        /// <returns>LIST DateIdle or null</returns>
+        public List<DateIdle> GetIdles()
         {
-            Id = id;
-            DateTimeStart = dateTimeStart;
-            TimeSpanDownTime = timeSpanDownTime;
-            TypeDownTimeInt = typeDownTimeInt;
-            TypeDownTime = typeDownTime;
-            Comment = comment;
+            if (_idles != null && _idles.Count > 0)
+                return _idles;
+            else
+                return null;
         }
     }
 }
