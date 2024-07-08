@@ -43,6 +43,7 @@ namespace Downtime_table
             }
             else
             {
+
                 dataGridView1.Columns.Clear();
                 dataGridView1.DataSource = ds.Tables[0];
 
@@ -90,7 +91,7 @@ namespace Downtime_table
                     }
                 }
 
-                var time = _database.GetDowntime();
+                var time = _database.GetFullDowntime();
                 labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours} : {time.Minutes} : {time.Seconds}) пропусков";
                 button1.Enabled = true;
                 pictureBox1.SendToBack();

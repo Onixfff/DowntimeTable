@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -49,19 +50,19 @@ namespace Downtime_table
 
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
-                sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
+                sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
                 sqlLastData = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
             }
             else
             {
                 if(currentTime.TimeOfDay <= new TimeSpan(24, 59, 59) && currentTime.TimeOfDay >= new TimeSpan(20, 00, 00))
                 {
-                    sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00';";
+                    sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00';";
                     sqlLastData = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'";
                 }
                 else if(currentTime.TimeOfDay <= new TimeSpan(8, 29, 00))
                 {
-                    sql = $"SELECT DBID, Timestamp FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00';";
+                    sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00';";
                     sqlLastData = $"select * from downTime where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00'";
 
                 }
@@ -133,13 +134,30 @@ namespace Downtime_table
                         {
                             while (await reader.ReadAsync())
                             {
-                                datesLocal.Add(new Date(
-                                        reader.GetInt32(0),
-                                        reader.GetDateTime(1),
-                                        reader.GetTimeSpan(2),
-                                        reader.GetInt32(3),
-                                        reader.GetString(4),
-                                        reader.GetString(5)));
+                                
+                                var name = reader.GetString(3);
+                                var time = reader.GetTimeSpan(4);
+                                var recept = new Recept(name, time);
+
+                                if(_recepts != null && _recepts.Count > 0)
+                                {
+                                    bool isEqual = _recepts.Equals(recept);
+                                    if(isEqual)
+                                    {
+                                        datesLocal.Add(new Date(
+                                                        reader.GetInt32(0),
+                                                        reader.GetDateTime(1),
+                                                        reader.GetTimeSpan(2),
+                                                        recept,
+                                                        reader.GetInt32(5),
+                                                        reader.GetString(6),
+                                                        reader.GetString(7)));
+                                    }
+                                    else
+                                    {
+                                        new Exception("Ошибка сбора старых данных");
+                                    }
+                                }
                             }
                             reader.Close();
                         }
@@ -546,18 +564,15 @@ namespace Downtime_table
             return query;
         }
 
-        private List<Database> DeletesIdenticalData()
+        private List<Date> DeletesIdenticalData(List<Date> datesNew, List<Date> datesPast)
         {
-            List<Database> result = new List<Database>();
 
-            int count = 0;
+            List<Date> result = new List<Date>();
+            datesNew.CopyTo(result.ToArray(),0);
 
-            foreach (var dateNew in datesNew)
+            foreach (var item in datesPast)
             {
-                foreach(var datePast in datesPast)
-                {
-                    if (dateNew
-                }
+
             }
 
             return result;
@@ -620,13 +635,20 @@ namespace Downtime_table
             }
         }
 
+        /// <summary>
+        /// Очищает Все данные
+        /// </summary>
         public void ClearData()
         {
             newDates.Clear();
             datesPast.Clear();
         }
-
-        public TimeSpan GetDowntime()
+        
+        /// <summary>
+        /// Возвращает общее время простоя
+        /// </summary>
+        /// <returns>TimeSpan</returns>
+        public TimeSpan GetFullDowntime()
         {
             var table = _dsMain.Tables[0];
             TimeSpan time = new TimeSpan();
@@ -636,6 +658,7 @@ namespace Downtime_table
                 TimeSpan column1Value = (TimeSpan)table.Rows[i]["Время простоя"];
                 time += column1Value;
             }
+
             return time;
         }
 
@@ -693,7 +716,7 @@ namespace Downtime_table
         {
             string query = "SELECT Name FROM spslogger.receptTime group by Name;";
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
             {
                 try
                 {
@@ -754,7 +777,7 @@ namespace Downtime_table
         {
             string sqlInsert = "INSERT INTO spslogger.recepttime (Name, Time) VALUES (@Name, @Time)";
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
             {
                 try
                 {
