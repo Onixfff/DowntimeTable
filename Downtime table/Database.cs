@@ -816,4 +816,24 @@ namespace Downtime_table
             }
         }
     }
+
+    public class DownTimeData
+    {
+        public int Id { get; private set; }
+        public DateTime DateTimeStart { get; private set; }
+        public TimeSpan TimeSpanDownTime { get; private set; }
+        public int TypeDownTimeInt { get; private set; }
+        public string TypeDownTime { get; private set; }
+        public string Comment { get; private set; }
+
+        public DownTimeData(int id, DateTime dateTimeStart, TimeSpan timeSpanDownTime, int typeDownTimeInt, string typeDownTime, string comment)
+        {
+            Id = id;
+            DateTimeStart = dateTimeStart;
+            TimeSpanDownTime = timeSpanDownTime;
+            TypeDownTimeInt = typeDownTimeInt;
+            TypeDownTime = typeDownTime;
+            Comment = comment;
+        }
+    }
 }

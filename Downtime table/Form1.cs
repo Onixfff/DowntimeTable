@@ -336,5 +336,19 @@ namespace Downtime_table
             CheckPasses.Form1 form1 = new CheckPasses.Form1();
             form1.ShowDialog();
         }
+
+        private void toolStripComboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+            string textComboBox = toolStripComboBox1.SelectedItem.ToString();
+
+            for (int i = 0; i < _recepts.Count; i++)
+            {
+                if (_recepts[i].Name == textComboBox)
+                {
+
+                }
+            }
+        }
     }
 }
