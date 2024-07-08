@@ -1,5 +1,6 @@
 ﻿using Downtime_table;
 using MySql.Data.MySqlClient;
+using MySqlX.XDevAPI.Common;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -14,10 +15,6 @@ namespace Downtime_table
 {
     public class Database
     {  
-        private int _minusDifferenceHour = 0;
-        private int _minusDifferenceMinut = 10;
-        private int _minusDifferenceSecond = 30;
-        private DataSet _dsMain;
         private DataSet _dsIdle;
         public List<Date> datesNew = new List<Date>();
         private List<Date> datesPast = new List<Date>();
@@ -25,9 +22,10 @@ namespace Downtime_table
         private List<string> _recepts;
         private List<newDate> newDates = new List<newDate>();
         private bool isNewData;
-        List<DateIdle> _idles;
+        List<DateIdle> _idles = new List<DateIdle>();
         private List<Recept> _LocalPCRecepts = new List<Recept>();
         private List<Recept> _ServerRecepts = new List<Recept>();
+        private List<Date> _resultDate = new List<Date>();
 
         private string _errorOldBdMessage = "Unknown system variable 'lower_case_table_names'";
 
@@ -51,19 +49,19 @@ namespace Downtime_table
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
                 sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
-                sqlLastData = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
+                sqlLastData = $"select f1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f1.Comment from downTime as f1 left join recepttime as f2 on f1.Recept = f2.Name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
             }
             else
             {
                 if(currentTime.TimeOfDay <= new TimeSpan(24, 59, 59) && currentTime.TimeOfDay >= new TimeSpan(20, 00, 00))
                 {
                     sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00';";
-                    sqlLastData = $"select * from downTime where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'";
+                    sqlLastData = $"select f1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f1.Comment from downTime as f1 left join recepttime as f2 on f1.Recept = f2.Name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'";
                 }
                 else if(currentTime.TimeOfDay <= new TimeSpan(8, 29, 00))
                 {
                     sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00';";
-                    sqlLastData = $"select * from downTime where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00'";
+                    sqlLastData = $"select f1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f1.Comment from downTime as f1 left join recepttime as f2 on f1.Recept = f2.Name Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00'";
 
                 }
                 else
@@ -74,31 +72,68 @@ namespace Downtime_table
                 }
             }
                 
-            datesPast = await ReturnLastDataAsync(sqlLastData);
             datesNew = await ReturnDataAsync(sql);
+            datesPast = await ReturnLastDataAsync(sqlLastData);
 
-            datesNew = CalculateDowntime(newDates, new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut,_minusDifferenceSecond));
+            datesNew = CalculateDowntime(newDates);
 
-            _dsMain = DeletesIdenticalData(ds, dsPast);
-
-
-            dataGridView1.DataSource = _dsMain;
+            _resultDate = DeletesIdenticalData(datesNew, datesPast);
         }
 
-        private List<Date> CalculateDowntime(List<newDate> newDate, TimeSpan difference)
+        private List<Date> ChangeViewResult(Recept recept, List<Date> main)
+        {
+            List<Date> result = new List<Date>();
+
+            foreach (var item in result)
+            {
+                if(item.Recept == recept)
+                {
+                    result.Add(item);
+                }
+            }
+
+            return result;
+        }
+
+        private List<Date> CalculateDowntime(List<newDate> newDate)
         {
             List<Date> datesNew = new List<Date>();
-            TimeSpan timeSpan = new TimeSpan(_minusDifferenceHour, _minusDifferenceMinut, _minusDifferenceSecond);
 
             for (int i = 0; i < newDate.Count -1; i++)
             {
+
+                string nameRecept = newDate[i].NameRecept;
+                TimeSpan time;
+                Recept recept = null;
+
+                if (_ServerRecepts != null && _ServerRecepts.Count > 0)
+                {
+                    foreach (var item in _ServerRecepts)
+                    {
+                        if(item.Name == nameRecept)
+                        {
+                            recept = new Recept(nameRecept, item.Time);
+                            break;
+                        }
+                    }
+                    if(recept == null)
+                        throw new Exception("Ошибка в нахождении похожего recept");
+                }
+
                 var dt = newDate[i];
                 var nextDt = newDate[i+1];
-                var result =  nextDt.DateTime - dt.DateTime;
-
-                if (result.TotalSeconds >= difference.TotalSeconds)
+                TimeSpan result = TimeSpan.Zero;
+                
+                if (dt.NameRecept == nextDt.NameRecept)
                 {
-                    datesNew.Add(new Date(dt.DBIG, dt.DateTime, result - timeSpan));
+                    result = nextDt.DateTime - dt.DateTime;
+                }
+
+                TimeSpan timeSpan = recept.Time;
+
+                if (result.TotalSeconds >= timeSpan.TotalSeconds)
+                {
+                    datesNew.Add(new Date(dt.DBIG, dt.DateTime, result - timeSpan, recept));
                 }
             }
 
@@ -109,7 +144,7 @@ namespace Downtime_table
         {
             List<Date> datesLocal = new List<Date>();
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
             {
                 try
                 {
@@ -134,28 +169,36 @@ namespace Downtime_table
                         {
                             while (await reader.ReadAsync())
                             {
-                                
-                                var name = reader.GetString(3);
-                                var time = reader.GetTimeSpan(4);
-                                var recept = new Recept(name, time);
+                                Recept recept;
+                                var name = reader.IsDBNull(3) ? null : reader.GetString(3);
+                                TimeSpan? time = reader.IsDBNull(4) ? (TimeSpan?)null : reader.GetFieldValue<TimeSpan>(4);
 
-                                if(_recepts != null && _recepts.Count > 0)
+                                if (time != null && name != null)
                                 {
-                                    bool isEqual = _recepts.Equals(recept);
-                                    if(isEqual)
+                                    recept = new Recept(name, time.Value);
+
+                                    if (_ServerRecepts != null && _ServerRecepts.Count > 0)
                                     {
-                                        datesLocal.Add(new Date(
-                                                        reader.GetInt32(0),
-                                                        reader.GetDateTime(1),
-                                                        reader.GetTimeSpan(2),
-                                                        recept,
-                                                        reader.GetInt32(5),
-                                                        reader.GetString(6),
-                                                        reader.GetString(7)));
-                                    }
-                                    else
-                                    {
-                                        new Exception("Ошибка сбора старых данных");
+                                        foreach (var item in _ServerRecepts)
+                                        {
+                                            if (item.Name == name)
+                                            {
+                                                datesLocal.Add
+                                                    (new Date(
+                                                                reader.GetInt32(0),
+                                                                reader.GetDateTime(1),
+                                                                reader.GetTimeSpan(2),
+                                                                recept,
+                                                                reader.GetInt32(5),
+                                                                reader.GetString(6),
+                                                                reader.GetString(7))
+                                                    );
+                                            }
+                                            else
+                                            {
+                                                new Exception("Ошибка сбора старых данных");
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -207,7 +250,8 @@ namespace Downtime_table
                                 newDates.Add(new newDate
                                     (
                                     reader.GetInt32(0),
-                                    reader.GetDateTime(1)
+                                    reader.GetDateTime(1),
+                                    reader.GetString(2)
                                 ));
                             }
                             reader.Close();
@@ -228,7 +272,7 @@ namespace Downtime_table
 
         public async Task<List<DateIdle>> GetIdlesAsync()
         {
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
             {
                 try
                 {
@@ -430,7 +474,7 @@ namespace Downtime_table
 
             List<Recept> recept = new List<Recept>();
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
             {
                 try
                 {
@@ -567,15 +611,22 @@ namespace Downtime_table
         private List<Date> DeletesIdenticalData(List<Date> datesNew, List<Date> datesPast)
         {
 
-            List<Date> result = new List<Date>();
-            datesNew.CopyTo(result.ToArray(),0);
+            Dictionary<Date, Date> dateDictionary = new Dictionary<Date, Date>();
 
-            foreach (var item in datesPast)
+            // Добавим все элементы из первого списка
+            foreach (var date in datesNew)
             {
-
+                dateDictionary[date] = date;
             }
 
-            return result;
+            // Добавим все элементы из второго списка, заменяя дубликаты
+            foreach (var date in datesPast)
+            {
+                dateDictionary[date] = date;
+            }
+
+            // Преобразуем словарь обратно в список
+            return dateDictionary.Values.ToList();
         }
 
         public bool ChecksFieldsAreFilledIn()
@@ -650,13 +701,13 @@ namespace Downtime_table
         /// <returns>TimeSpan</returns>
         public TimeSpan GetFullDowntime()
         {
-            var table = _dsMain.Tables[0];
             TimeSpan time = new TimeSpan();
 
-            for(int i = 0; i < table.Rows.Count; i++)
+
+            foreach (var item in _resultDate)
             {
-                TimeSpan column1Value = (TimeSpan)table.Rows[i]["Время простоя"];
-                time += column1Value;
+                var valueTime = item.Recept.Time;
+                time += valueTime;
             }
 
             return time;

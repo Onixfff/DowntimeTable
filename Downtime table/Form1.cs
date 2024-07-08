@@ -11,7 +11,7 @@ namespace Downtime_table
 {
     public partial class Form1 : Form
     {
-        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["dbLocalServer"].ConnectionString);
+        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString);
         private Database _database = new Database();
         private List<string> _comments;
         private DataSet _dataSet = new DataSet();
@@ -36,7 +36,8 @@ namespace Downtime_table
             ChangeComboBoxRecepts();
             isUpdate = true;
             DateTime _currentDate = DateTime.Now;
-            DataSet ds = await _database.GetMain(_currentDate, dataGridView1);
+            _database.GetMain(_currentDate, dataGridView1);
+            DataSet ds = new DataSet();
             if (ds == null)
             {
                 MessageBox.Show("Ошибка получения данных", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);

@@ -10,11 +10,13 @@ namespace Downtime_table
     {
         public int DBIG;
         public DateTime DateTime;
+        public string NameRecept;
 
-        public newDate(int dbig, DateTime dateTime)
+        public newDate(int dbig, DateTime dateTime, string nameRecept)
         {
             DBIG = dbig;
             DateTime = dateTime;
+            NameRecept = nameRecept;
         }
     }
 }
