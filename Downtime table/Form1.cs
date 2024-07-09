@@ -6,6 +6,7 @@ using System.Data;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
+using System.Xml;
 
 namespace Downtime_table
 {
@@ -20,6 +21,8 @@ namespace Downtime_table
         private int columnIndex;
         private bool isUpdate = false;
         private List<Recept> _recepts;
+        private List<Date> mainDate;
+        private DataSet _ds = new DataSet();
 
         public Form1()
         {
@@ -30,43 +33,85 @@ namespace Downtime_table
             pictureBox1.BringToFront();
         }
 
+        private void ChangeDataGridView(List<Date> date)
+        {
+            _ds.Clear();
+            var nameTable = $"Все";
+            DataTable dt = new DataTable(nameTable);
+
+            dt.Columns.Add(new DataColumn("id", typeof(int)));
+            dt.Columns[0].ReadOnly = true;
+            dt.Columns.Add(new DataColumn("Время начало", typeof(DateTime)));
+            dt.Columns[1].ReadOnly = true;
+            dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
+            dt.Columns[2].ReadOnly = true;
+            dt.Columns.Add(new DataColumn("Рецепт", typeof(string)));
+            dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
+
+
+            for (int i = 0; i < date.Count; i++)
+            {
+                DataRow dr = dt.NewRow();
+                dr["id"] = date[i].Id;
+                dr["Время начало"] = date[i].Timestamp;
+                dr["Время простоя"] = date[i].Difference;
+                dr["Рецепт"] = date[i].Recept.Name;
+                dr["Комментарий"] = date[i].Comments;
+                dt.Rows.Add(dr);
+            }
+
+            _ds.Tables.Add(dt);
+            dataGridView1.DataSource = _ds.Tables[nameTable];
+        }
+
+        private bool ChecksDateWithinCurrentTime(Recept recept)
+        {
+            bool isHave = false;
+            string nameTable = $"Recept Name = "+ recept.Name + " Recept Time = " + recept.Time ;
+
+            if (_ds.Tables.Contains(nameTable))
+            {
+                isHave = true;
+            }
+
+            return isHave;
+        }
+
         private async void Form1_Load(object sender, EventArgs e)
         {
             _recepts = await _database.GetRecept();
             ChangeComboBoxRecepts();
             isUpdate = true;
             DateTime _currentDate = DateTime.Now;
-            _database.GetMain(_currentDate, dataGridView1);
-            DataSet ds = new DataSet();
-            if (ds == null)
+            bool t = await _database.GetMain(_currentDate, dataGridView1);
+            
+            if(t == true)
+            {
+                ChangeDataGridView(_database.GetDate());
+            }
+
+            if (_ds == null)
             {
                 MessageBox.Show("Ошибка получения данных", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             else
             {
 
-                dataGridView1.Columns.Clear();
-                dataGridView1.DataSource = ds.Tables[0];
+                dataGridView1.Refresh();
 
-                List< DateIdle> idles = _database.GetIdles();
+                //List< DateIdle> idles = _database.GetIdles();
 
-                DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
-                cmbColumn.HeaderText = "Вид простоя";
-                cmbColumn.Name = "cmbVidProstoya";
-                cmbColumn.DisplayMember = "TypeDowntime"; // Текст, который будет отображаться в ComboBox
-                cmbColumn.ValueMember = "IdTypeDowntime"; // Значение, которое будет использоваться в качестве идентификатора
+                //DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
+                //cmbColumn.HeaderText = "Вид простоя";
+                //cmbColumn.Name = "cmbVidProstoya";
+                //cmbColumn.DisplayMember = "TypeDowntime"; // Текст, который будет отображаться в ComboBox
+                //cmbColumn.ValueMember = "IdTypeDowntime"; // Значение, которое будет использоваться в качестве идентификатора
 
-                foreach (var idle in idles)
-                {
-                    cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
-                }
-                dataGridView1.Columns.Add(cmbColumn);
-
-                dataGridView1.Columns["id"].DisplayIndex = 0;
-                dataGridView1.Columns["Время начала"].DisplayIndex = 1;
-                dataGridView1.Columns["Время простоя"].DisplayIndex = 2;
-                dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 3;
-                dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
+                //foreach (var idle in idles)
+                //{
+                //    cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
+                //}
+                //dataGridView1.Columns.Add(cmbColumn);
 
                 List<Date> dates = _database.GetListDate();
                 for (int i = 0; i < dates.Count; i++)
@@ -94,7 +139,7 @@ namespace Downtime_table
 
                 var time = _database.GetFullDowntime();
                 labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours} : {time.Minutes} : {time.Seconds}) пропусков";
-                button1.Enabled = true;
+                button1.Enabled = true; 
                 pictureBox1.SendToBack();
                 isUpdate = false;
             }
@@ -254,11 +299,11 @@ namespace Downtime_table
         private List<string> FindMatchingSentences(string input)
         {
             List<string> matchingSentences = new List<string>();
-            string[] words = input.ToLower().Split(' ');
+            string[] wor_ds = input.ToLower().Split(' ');
             foreach (string sentence in _comments)
             {
                 bool matchFound = true;
-                foreach (string word in words)
+                foreach (string word in wor_ds)
                 {
                     if (!sentence.ToLower().Contains(word))
                     {
@@ -341,7 +386,6 @@ namespace Downtime_table
 
         private void toolStripComboBox1_SelectedIndexChanged(object sender, EventArgs e)
         {
-
             string textComboBox = toolStripComboBox1.SelectedItem.ToString();
 
             for (int i = 0; i < _recepts.Count; i++)

@@ -26,7 +26,7 @@ namespace Downtime_table
 
         private string _errorOldBdMessage = "Unknown system variable 'lower_case_table_names'";
 
-        public async void GetMain(DateTime dateTime, DataGridView dataGridView1)
+        public async Task<bool> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
             //Обновляет данные из локольной базы пк на сервер для получения recepts
             _ServerRecepts = await GetServerRecepts();
@@ -75,6 +75,15 @@ namespace Downtime_table
             datesNew = CalculateDowntime(newDates);
 
             _resultDate = DeletesIdenticalData(datesNew, datesPast);
+            return true;
+        }
+
+        public List<Date> GetDate()
+        {
+            if(_resultDate != null && _resultDate.Count > 0)
+                return _resultDate;
+            else 
+                return null; 
         }
 
         private List<Date> ChangeViewResult(Recept recept, List<Date> main)
@@ -699,7 +708,6 @@ namespace Downtime_table
         public TimeSpan GetFullDowntime()
         {
             TimeSpan time = new TimeSpan();
-
 
             foreach (var item in _resultDate)
             {
