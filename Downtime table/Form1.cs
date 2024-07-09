@@ -22,6 +22,7 @@ namespace Downtime_table
         private List<Recept> _recepts;
         private List<Date> mainDate;
         private DataSet _ds = new DataSet();
+        private List<DateIdle> _idles = new List<DateIdle>();
 
         public Form1()
         {
@@ -34,24 +35,17 @@ namespace Downtime_table
 
         private async void Form1_Load(object sender, EventArgs e)
         {
+            DateTime _currentDate = DateTime.Now;
+            await _database.GetMain(_currentDate, dataGridView1);
+
             _recepts = await _database.GetRecept();
             ChangeComboBoxRecepts();
+
             isUpdate = true;
-            DateTime _currentDate = DateTime.Now;
-            bool t = await _database.GetMain(_currentDate, dataGridView1);
-            
-            if(t == true)
-            {
-                ChangeDataGridView(_database.GetDate());
-            }
 
-            List<DateIdle> idles = _database.GetIdles();
+            _idles = _database.GetIdles();
 
-            DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
-            cmbColumn.HeaderText = "Вид простоя";
-            cmbColumn.Name = "cmbVidProstoya";
-            cmbColumn.DisplayMember = "TypeDowntime"; // Текст, который будет отображаться в ComboBox
-            cmbColumn.ValueMember = "IdTypeDowntime"; // Значение, которое будет использоваться в качестве идентификатора
+
 
             if (_ds == null)
             {
@@ -59,42 +53,6 @@ namespace Downtime_table
             }
             else
             {
-                foreach (var idle in idles)
-                {
-                    cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
-                }
-
-                dataGridView1.Columns.Add(cmbColumn);
-                dataGridView1.Columns["id"].DisplayIndex = 0;
-                dataGridView1.Columns["Время начало"].DisplayIndex = 1;
-                dataGridView1.Columns["Время простоя"].DisplayIndex = 2;
-                dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 5;
-                dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
-                dataGridView1.Columns["Рецепт"].DisplayIndex = 3;
-
-                List<Date> dates = _database.GetListDate();
-                for (int i = 0; i < dates.Count; i++)
-                {
-                    foreach (DataGridViewRow row in dataGridView1.Rows)
-                    {
-                        if (row.Cells["cmbVidProstoya"] is DataGridViewComboBoxCell comboBoxCell)
-                        {
-                            // Установка выбранного значения для ComboBox в каждой строке
-                            if (dates[i].Timestamp == Convert.ToDateTime(row.Cells["Время начала"].Value))
-                            {
-                                var data = dates[i].IdTypeDowntime;
-                                if (data != null && data > 0)
-                                {
-                                    comboBoxCell.Value = data;
-                                }
-                                else
-                                {
-                                    comboBoxCell = null;
-                                }
-                            }
-                        }
-                    }
-                }
 
                 var time = _database.GetFullDowntime();
                 labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours} : {time.Minutes} : {time.Seconds}) пропусков";
@@ -104,10 +62,12 @@ namespace Downtime_table
             }
         }
 
-        private void ChangeDataGridView(List<Date> date)
+        private void ChangeDataGridView(List<Date> date, string ReceptName)
         {
+            string nameTable;
             _ds.Reset();
-            var nameTable = $"Все";
+            nameTable = $"{ReceptName}";
+
             DataTable dt = new DataTable(nameTable);
 
             dt.Columns.Add(new DataColumn("id", typeof(int)));
@@ -117,30 +77,121 @@ namespace Downtime_table
             dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
             dt.Columns[2].ReadOnly = true;
             dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
+            dt.Columns[3].ReadOnly = true;
             dt.Columns.Add(new DataColumn("Рецепт", typeof(string)));
 
 
-            for (int i = 0; i < date.Count; i++)
+            if (ChecksDateWithinCurrentTime(nameTable))
             {
-                DataRow dr = dt.NewRow();
-                dr["id"] = date[i].Id;
-                dr["Время начало"] = date[i].Timestamp;
-                dr["Время простоя"] = date[i].Difference;
-                dr["Комментарий"] = date[i].Comments;
-                dr["Рецепт"] = date[i].Recept.Name;
-                dt.Rows.Add(dr);
+                for (int i = 0; i < date.Count; i++)
+                {
+                    if (date[i].Recept.Name == nameTable)
+                    {
+                        DataRow dr = dt.NewRow();
+                        dr["id"] = date[i].Id;
+                        dr["Время начало"] = date[i].Timestamp;
+                        dr["Время простоя"] = date[i].Difference;
+                        dr["Комментарий"] = date[i].Comments;
+                        dr["Рецепт"] = date[i].Recept.Name;
+                        dt.Rows.Add(dr);
+                    }
+                }
+            }
+            else
+            {
+                if (nameTable == "Все")
+                {
+                    for (int i = 0; i < date.Count; i++)
+                    {
+                        DataRow dr = dt.NewRow();
+                        dr["id"] = date[i].Id;
+                        dr["Время начало"] = date[i].Timestamp;
+                        dr["Время простоя"] = date[i].Difference;
+                        dr["Комментарий"] = date[i].Comments;
+                        dr["Рецепт"] = date[i].Recept.Name;
+                        dt.Rows.Add(dr);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < date.Count; i++)
+                    {
+                        if (date[i].Recept.Name == nameTable)
+                        {
+                            DataRow dr = dt.NewRow();
+                            dr["id"] = date[i].Id;
+                            dr["Время начало"] = date[i].Timestamp;
+                            dr["Время простоя"] = date[i].Difference;
+                            dr["Комментарий"] = date[i].Comments;
+                            dr["Рецепт"] = date[i].Recept.Name;
+                            dt.Rows.Add(dr);
+                        }
+                    }
+                }
+
             }
 
             _ds.Tables.Add(dt);
             dataGridView1.Columns.Clear();
             dataGridView1.DataSource = _ds.Tables[nameTable];
+            AddColumnTypeDownTime();
+            ChangeIndexColumn();
             dataGridView1.Refresh();
         }
 
-        private bool ChecksDateWithinCurrentTime(Recept recept)
+        private void ChangeIndexColumn()
+        {
+            dataGridView1.Columns["id"].DisplayIndex = 0;
+            dataGridView1.Columns["Время начало"].DisplayIndex = 1;
+            dataGridView1.Columns["Время простоя"].DisplayIndex = 2;
+            dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 5;
+            dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
+            dataGridView1.Columns["Рецепт"].DisplayIndex = 3;
+        }
+
+        private void AddColumnTypeDownTime()
+        {
+            DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
+            cmbColumn.HeaderText = "Вид простоя";
+            cmbColumn.Name = "cmbVidProstoya";
+            cmbColumn.DisplayMember = "TypeDowntime"; // Текст, который будет отображаться в ComboBox
+            cmbColumn.ValueMember = "IdTypeDowntime"; // Значение, которое будет использоваться в качестве идентификатора
+
+            foreach (var idle in _idles)
+            {
+                cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
+            }
+            dataGridView1.Columns.Add(cmbColumn);
+
+            List<Date> dates = _database.GetListDate();
+            for (int i = 0; i < dates.Count; i++)
+            {
+                foreach (DataGridViewRow row in dataGridView1.Rows)
+                {
+                    if (row.Cells["cmbVidProstoya"] is DataGridViewComboBoxCell comboBoxCell)
+                    {
+                        // Установка выбранного значения для ComboBox в каждой строке
+                        if (dates[i].Timestamp == Convert.ToDateTime(row.Cells["Время начала"].Value))
+                        {
+                            var data = dates[i].IdTypeDowntime;
+                            if (data != null && data > 0)
+                            {
+                                comboBoxCell.Value = data;
+                            }
+                            else
+                            {
+                                comboBoxCell = null;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private bool ChecksDateWithinCurrentTime(string receptName)
         {
             bool isHave = false;
-            string nameTable = $"Recept Name = " + recept.Name + " Recept Time = " + recept.Time;
+            string nameTable = receptName;
 
             if (_ds.Tables.Contains(nameTable))
             {
@@ -152,10 +203,15 @@ namespace Downtime_table
 
         private void ChangeComboBoxRecepts()
         {
+            toolStripComboBox1.Items.Clear();
+
+            toolStripComboBox1.Items.Add("Все");
+
             foreach (var item in _recepts)
             {
                 toolStripComboBox1.Items.Add(item.Name);
             }
+
             toolStripComboBox1.SelectedIndex = 0;
         }
 
@@ -394,11 +450,18 @@ namespace Downtime_table
         {
             string textComboBox = toolStripComboBox1.SelectedItem.ToString();
 
+            if (textComboBox == "Все")
+            {
+                ChangeDataGridView(_database.GetDate(), textComboBox);
+                return;
+            }
+
             for (int i = 0; i < _recepts.Count; i++)
             {
+
                 if (_recepts[i].Name == textComboBox)
                 {
-
+                    ChangeDataGridView(_database.GetDate(), textComboBox);
                 }
             }
         }
