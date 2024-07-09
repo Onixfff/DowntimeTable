@@ -509,7 +509,7 @@ namespace Downtime_table
 
         public async Task<string[]> GetCommentsAsync()
         {
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
             {
                 try
                 {

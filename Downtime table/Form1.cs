@@ -6,7 +6,6 @@ using System.Data;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
-using System.Xml;
 
 namespace Downtime_table
 {
@@ -45,8 +44,8 @@ namespace Downtime_table
             dt.Columns[1].ReadOnly = true;
             dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
             dt.Columns[2].ReadOnly = true;
-            dt.Columns.Add(new DataColumn("Рецепт", typeof(string)));
             dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
+            dt.Columns.Add(new DataColumn("Рецепт", typeof(string)));
 
 
             for (int i = 0; i < date.Count; i++)
@@ -55,8 +54,8 @@ namespace Downtime_table
                 dr["id"] = date[i].Id;
                 dr["Время начало"] = date[i].Timestamp;
                 dr["Время простоя"] = date[i].Difference;
-                dr["Рецепт"] = date[i].Recept.Name;
                 dr["Комментарий"] = date[i].Comments;
+                dr["Рецепт"] = date[i].Recept.Name;
                 dt.Rows.Add(dr);
             }
 
@@ -99,19 +98,26 @@ namespace Downtime_table
 
                 dataGridView1.Refresh();
 
-                //List< DateIdle> idles = _database.GetIdles();
+                List<DateIdle> idles = _database.GetIdles();
 
-                //DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
-                //cmbColumn.HeaderText = "Вид простоя";
-                //cmbColumn.Name = "cmbVidProstoya";
-                //cmbColumn.DisplayMember = "TypeDowntime"; // Текст, который будет отображаться в ComboBox
-                //cmbColumn.ValueMember = "IdTypeDowntime"; // Значение, которое будет использоваться в качестве идентификатора
+                DataGridViewComboBoxColumn cmbColumn = new DataGridViewComboBoxColumn();
+                cmbColumn.HeaderText = "Вид простоя";
+                cmbColumn.Name = "cmbVidProstoya";
+                cmbColumn.DisplayMember = "TypeDowntime"; // Текст, который будет отображаться в ComboBox
+                cmbColumn.ValueMember = "IdTypeDowntime"; // Значение, которое будет использоваться в качестве идентификатора
 
-                //foreach (var idle in idles)
-                //{
-                //    cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
-                //}
-                //dataGridView1.Columns.Add(cmbColumn);
+                foreach (var idle in idles)
+                {
+                    cmbColumn.Items.Add(new { IdTypeDowntime = idle.Id, TypeDowntime = idle.Name });
+                }
+
+                dataGridView1.Columns.Add(cmbColumn);
+                dataGridView1.Columns["id"].DisplayIndex = 0;
+                dataGridView1.Columns["Время начало"].DisplayIndex = 1;
+                dataGridView1.Columns["Время простоя"].DisplayIndex = 2;
+                dataGridView1.Columns["cmbVidProstoya"].DisplayIndex = 5;
+                dataGridView1.Columns["Комментарий"].DisplayIndex = 4;
+                dataGridView1.Columns["Рецепт"].DisplayIndex = 3;
 
                 List<Date> dates = _database.GetListDate();
                 for (int i = 0; i < dates.Count; i++)
@@ -235,7 +241,7 @@ namespace Downtime_table
 
                 switch (dataGridView1.CurrentCell.ColumnIndex)
                 {
-                    case 4:
+                    case 5:
                         if (e.ColumnIndex == dataGridView1.Columns["cmbVidProstoya"].Index)
                         {
                             id = Convert.ToInt32(dataGridView1.Rows[e.RowIndex].Cells[targetId].Value);
