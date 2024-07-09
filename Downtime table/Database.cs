@@ -154,20 +154,7 @@ namespace Downtime_table
             {
                 try
                 {
-                    try
-                    {
-                        if (connection.State == ConnectionState.Closed)
-                            await connection.OpenAsync();
-                    }
-                    catch (MySqlException ex)
-                    {
-                        if(ex.Message == _errorOldBdMessage)
-                            goto Select;
-                        else
-                            MessageBox.Show(ex.Message);
-                    }
-
-                Select:
+                    await connection.OpenAsync();
 
                     using (MySqlCommand command = new MySqlCommand(query, connection))
                     {
