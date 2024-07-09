@@ -1,12 +1,9 @@
-﻿using Downtime_table;
-using MySql.Data.MySqlClient;
-using MySqlX.XDevAPI.Common;
+﻿using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Linq;
-using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
