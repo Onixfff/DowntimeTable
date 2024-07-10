@@ -213,13 +213,13 @@ namespace Downtime_table
             toolStripComboBox1.SelectedIndex = 0;
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private async void button1_Click(object sender, EventArgs e)
         {
             button1.Enabled = false;
             Thread.Sleep(500);
             if (_database.ChecksFieldsAreFilledIn())
             {
-                _database.InsertData(_mCon);
+                await _database.InsertDataAsync();
                 Form1_Load(sender, e);
             }
             else

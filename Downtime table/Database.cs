@@ -375,108 +375,77 @@ namespace Downtime_table
             }
         }
 
-        public async void InsertData(MySqlConnection _mCon)
+        public async Task InsertDataAsync()
         {
-            try
+            bool isComplite = false;
+
+            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString)) 
             {
                 try
                 {
-                    switch (_mCon.State)
+                    await connection.OpenAsync();
+                    var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment, Recept) VALUES ");
+
+                    // Добавление всех значений в запрос
+                    var valueList = new List<string>();
+                    int countInt = 0;
+
+                    foreach (var entry in datesNew)
                     {
-                        case ConnectionState.Closed:
-                            await _mCon.OpenAsync();
-                            break;
-                        case ConnectionState.Open:
-                            break;
-                        case ConnectionState.Connecting:
-                            Thread.Sleep(1000);
-                            if (_mCon.State != ConnectionState.Open)
-                            {
-                                throw new Exception();
-                            }
-                            break;
-                        case ConnectionState.Executing:
-                            break;
-                        case ConnectionState.Fetching:
-                            break;
-                        case ConnectionState.Broken:
-                            break;
+                        if (entry._isPastData == false)
+                        {
+                            valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}',  '{entry.Recept.Name}')");
+                            countInt++;
+                        }
                     }
-                }
-                catch (MySqlException)
-                {
-                    goto Insert;
+
+                    // Соединяем все строки значений в один запрос
+                    query.Append(string.Join(", ", valueList));
+                    query.Append(";");
+
+                    string queryUpdate = GetUpdateQueryAsync(datesPast);
+
+                    if (countInt > 0 && queryUpdate != null)
+                    {
+                        var queryFull = query.ToString() + queryUpdate;
+                        using (MySqlCommand cmd = new MySqlCommand(queryFull, connection))
+                        {
+                            await cmd.ExecuteNonQueryAsync();
+                            isComplite = true;
+                        }
+                    }
+                    else if (countInt > 0 && queryUpdate == null)
+                    {
+                        using (MySqlCommand cmd = new MySqlCommand(query.ToString(), connection))
+                        {
+                            await cmd.ExecuteNonQueryAsync();
+                            isComplite = true;
+                        }
+                    }
+                    else if (countInt <= 0 && queryUpdate != null)
+                    {
+                        using (MySqlCommand cmd = new MySqlCommand(queryUpdate, connection))
+                        {
+                            await cmd.ExecuteNonQueryAsync();
+                            isComplite = true;
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Ошибка подключения\n\n", ex.Message);
+                    Console.WriteLine(ex.Message);
                 }
-
-            Insert:
-                var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment, Recept) VALUES ");
-
-                // Добавление всех значений в запрос
-                var valueList = new List<string>();
-                int countInt = 0;
-                foreach (var entry in datesNew)
+                finally
                 {
-                    if (entry._isPastData == false)
-                    {
-                        valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}',  '{entry.Recept.Name}')");
-                        countInt++;
-                    }
+                    if (isComplite)
+                        MessageBox.Show("Данные сохранены", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    else
+                        MessageBox.Show("Ошибка сохранения");
+
+                    ClearData();
+                    await connection.CloseAsync();
                 }
-
-                // Соединяем все строки значений в один запрос
-                query.Append(string.Join(", ", valueList));
-                query.Append(";");
-
-                string queryUpdate = GetUpdateQuery(datesPast);
-                bool isComplite = false;
-                if (countInt > 0 && queryUpdate != null)
-                {
-                    var queryFull = query.ToString() + queryUpdate;
-                    // Создаем команду и выполняем запрос
-                    using (MySqlCommand cmd = new MySqlCommand(queryFull, _mCon))
-                    {
-                        cmd.ExecuteNonQuery();
-                        isComplite = true;
-                    }
-                }
-                else if(countInt > 0 && queryUpdate == null)
-                {
-                    // Создаем команду и выполняем запрос
-                    using (MySqlCommand cmd = new MySqlCommand(query.ToString(), _mCon))
-                    {
-                        cmd.ExecuteNonQuery();
-                        isComplite = true;
-                    }
-                }
-                else if(countInt <= 0 && queryUpdate != null)
-                {
-                    // Создаем команду и выполняем запрос
-                    using (MySqlCommand cmd = new MySqlCommand(queryUpdate, _mCon))
-                    {
-                        cmd.ExecuteNonQuery();
-                        isComplite = true;
-                    }
-                }
-
-                ClearData();
-
-                if(isComplite)
-                    MessageBox.Show("Данные сохранены", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            finally 
-            { 
-                await _mCon.CloseAsync();
-            }
-
         }
 
         public async Task<List<Recept>> GetRecept()
@@ -575,7 +544,7 @@ namespace Downtime_table
         /// </summary>
         /// <param name="datesNew">Данные для обновления</param>
         /// <returns>if(datesNew.Count <= 0) return null; else return string sql</returns>
-        public string GetUpdateQuery(List<Date> datesNew)
+        public string GetUpdateQueryAsync(List<Date> datesNew)
         {
             string query = "Update downtime set ";
             query += "idIdle = case ";
