@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
+using System.Diagnostics.Eventing.Reader;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,12 +54,12 @@ namespace Downtime_table
                 if(currentTime.TimeOfDay <= new TimeSpan(24, 59, 59) && currentTime.TimeOfDay >= new TimeSpan(20, 00, 00))
                 {
                     sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00';";
-                    sqlLastData = $"select f1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f1.Comment from downTime as f1 left join recepttime as f2 on f1.Recept = f2.Name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'";
+                    sqlLastData = $"select\r\nf1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment\r\nfrom downTime as f1 \r\nleft join recepttime as f2 on f1.Recept = f2.Name \r\nleft join ididles as f3 on f1.idIdle = f3.name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'";
                 }
                 else if(currentTime.TimeOfDay <= new TimeSpan(8, 29, 00))
                 {
                     sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00';";
-                    sqlLastData = $"select f1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f1.Comment from downTime as f1 left join recepttime as f2 on f1.Recept = f2.Name Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00'";
+                    sqlLastData = $"select\r\nf1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment\r\nfrom downTime as f1 \r\nleft join recepttime as f2 on f1.Recept = f2.Name \r\nleft join ididles as f3 on f1.idIdle = f3.name where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00'";
 
                 }
                 else
@@ -169,28 +170,32 @@ namespace Downtime_table
                                 if (time != null && name != null)
                                 {
                                     recept = new Recept(name, time.Value);
+                                }
+                                else
+                                {
+                                    recept = new Recept("Не указано");
+                                }
 
-                                    if (_ServerRecepts != null && _ServerRecepts.Count > 0)
+                                if (_ServerRecepts != null && _ServerRecepts.Count > 0)
+                                {
+                                    foreach (var item in _ServerRecepts)
                                     {
-                                        foreach (var item in _ServerRecepts)
+                                        if (item.Name == name)
                                         {
-                                            if (item.Name == name)
-                                            {
-                                                datesLocal.Add
-                                                    (new Date(
-                                                                reader.GetInt32(0),
-                                                                reader.GetDateTime(1),
-                                                                reader.GetTimeSpan(2),
-                                                                recept,
-                                                                reader.GetInt32(5),
-                                                                reader.GetString(6),
-                                                                reader.GetString(7))
-                                                    );
-                                            }
-                                            else
-                                            {
-                                                new Exception("Ошибка сбора старых данных");
-                                            }
+                                            datesLocal.Add
+                                                (new Date(
+                                                            reader.GetInt32(0),
+                                                            reader.GetDateTime(1),
+                                                            reader.GetTimeSpan(2),
+                                                            recept,
+                                                            reader.GetInt32(5),
+                                                            reader.GetString(6),
+                                                            reader.GetString(7))
+                                                );
+                                        }
+                                        else
+                                        {
+                                            new Exception("Ошибка сбора старых данных");
                                         }
                                     }
                                 }
