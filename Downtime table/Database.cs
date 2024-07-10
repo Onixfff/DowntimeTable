@@ -75,7 +75,7 @@ namespace Downtime_table
 
             datesNew = CalculateDowntime(newDates);
 
-            _resultDate = DeletesIdenticalData(datesNew, datesPast);
+            _resultDate = DeletesIdenticalData(ref datesNew, datesPast);
             return true;
         }
 
@@ -422,7 +422,7 @@ namespace Downtime_table
                 {
                     if (entry._isPastData == false)
                     {
-                        valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}, '{entry.Recept.Name}') ");
+                        valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}',  '{entry.Recept.Name}')");
                         countInt++;
                     }
                 }
@@ -619,25 +619,39 @@ namespace Downtime_table
             return query;
         }
 
-        private List<Date> DeletesIdenticalData(List<Date> datesNew, List<Date> datesPast)
+        private List<Date> DeletesIdenticalData(ref List<Date> datesNew, List<Date> datesPast)
         {
-
-            Dictionary<Date, Date> dateDictionary = new Dictionary<Date, Date>();
-
-            // Добавим все элементы из первого списка
+            List<Date> result = new List<Date>();
+            List<Date> delited = new List<Date>();
             foreach (var date in datesNew)
             {
-                dateDictionary[date] = date;
+                result.Add(date);
             }
 
-            // Добавим все элементы из второго списка, заменяя дубликаты
-            foreach (var date in datesPast)
+            for(int i = 0; i < datesPast.Count; i++)
             {
-                dateDictionary[date] = date;
+                for(int j = 0; j < result.Count; j++)
+                {
+                    if (datesPast[i].Timestamp == result[j].Timestamp)
+                    {
+                        if (datesPast[i].Difference == result[j].Difference)
+                        {
+                            if (datesPast[i].Recept.Name == result[j].Recept.Name)
+                            {
+                                delited.Add(result[j]);
+                                result[j] = datesPast[i];
+                            }
+                        }
+                    }
+                }
             }
 
-            // Преобразуем словарь обратно в список
-            return dateDictionary.Values.ToList();
+            foreach (var item in delited)
+            {
+                datesNew.Remove(item);
+            }
+
+            return result;
         }
 
         public bool ChecksFieldsAreFilledIn()
