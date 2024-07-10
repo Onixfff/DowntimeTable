@@ -1,7 +1,5 @@
-﻿using MySql.Data.MySqlClient;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Data;
 using System.Drawing;
 using System.Threading;
@@ -11,7 +9,6 @@ namespace Downtime_table
 {
     public partial class Form1 : Form
     {
-        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString);
         private Database _database = new Database();
         private List<string> _comments;
         private DataSet _dataSet = new DataSet();
