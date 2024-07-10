@@ -39,12 +39,10 @@ namespace Downtime_table
             await _database.GetMain(_currentDate, dataGridView1);
 
             _recepts = await _database.GetRecept();
+            _idles = _database.GetIdles();
             ChangeComboBoxRecepts();
 
             isUpdate = true;
-
-            _idles = _database.GetIdles();
-
 
 
             if (_ds == null)
@@ -53,7 +51,6 @@ namespace Downtime_table
             }
             else
             {
-
                 var time = _database.GetFullDowntime();
                 labelTotal.Text = $"Итого : ({time.Days} : Дней)   ({time.Hours} : {time.Minutes} : {time.Seconds}) пропусков";
                 button1.Enabled = true; 
@@ -77,8 +74,9 @@ namespace Downtime_table
             dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
             dt.Columns[2].ReadOnly = true;
             dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
-            dt.Columns[3].ReadOnly = true;
             dt.Columns.Add(new DataColumn("Рецепт", typeof(string)));
+            dt.Columns[4].ReadOnly = true;
+
 
 
             if (ChecksDateWithinCurrentTime(nameTable))
