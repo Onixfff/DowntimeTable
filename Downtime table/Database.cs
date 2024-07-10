@@ -422,7 +422,7 @@ namespace Downtime_table
                 {
                     if (entry._isPastData == false)
                     {
-                        valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}, {entry.Recept.Name}')");
+                        valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}, '{entry.Recept.Name}') ");
                         countInt++;
                     }
                 }
