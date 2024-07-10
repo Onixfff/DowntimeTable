@@ -171,7 +171,7 @@ namespace Downtime_table
                     if (row.Cells["cmbVidProstoya"] is DataGridViewComboBoxCell comboBoxCell)
                     {
                         // Установка выбранного значения для ComboBox в каждой строке
-                        if (dates[i].Timestamp == Convert.ToDateTime(row.Cells["Время начала"].Value))
+                        if (dates[i].Timestamp == Convert.ToDateTime(row.Cells["Время начало"].Value))
                         {
                             var data = dates[i].IdTypeDowntime;
                             if (data != null && data > 0)

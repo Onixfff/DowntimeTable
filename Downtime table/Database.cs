@@ -47,7 +47,7 @@ namespace Downtime_table
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
                 sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
-                sqlLastData = $"select f1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f1.Comment from downTime as f1 left join recepttime as f2 on f1.Recept = f2.Name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
+                sqlLastData = $"select\r\nf1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment\r\nfrom downTime as f1 \r\nleft join recepttime as f2 on f1.Recept = f2.Name \r\nleft join ididles as f3 on f1.idIdle = f3.name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:00:00'";
             }
             else
             {
@@ -182,20 +182,33 @@ namespace Downtime_table
                                     {
                                         if (item.Name == name)
                                         {
+                                            var q = reader.GetInt32(0);
+                                            var w = reader.GetDateTime(1);
+                                            var y = reader.GetTimeSpan(2);
+                                            var rec = recept;
+                                            var zzx = reader.GetInt32(5);
+                                            string rqrwq = reader.IsDBNull(6) ? null : reader.GetString(6);
+                                            string f = reader.IsDBNull(7) ? null : reader.GetString(7);
+
+                                            if(f == null)
+                                            {
+                                                f = "Нету данных";
+                                            }
+                                            if(rqrwq == null)
+                                            {
+                                                rqrwq = "Нету данных";
+                                            }
+
                                             datesLocal.Add
                                                 (new Date(
-                                                            reader.GetInt32(0),
-                                                            reader.GetDateTime(1),
-                                                            reader.GetTimeSpan(2),
-                                                            recept,
-                                                            reader.GetInt32(5),
-                                                            reader.GetString(6),
-                                                            reader.GetString(7))
+                                                            q,
+                                                            w,
+                                                            y,
+                                                            rec,
+                                                            zzx,
+                                                            rqrwq,
+                                                            f)
                                                 );
-                                        }
-                                        else
-                                        {
-                                            new Exception("Ошибка сбора старых данных");
                                         }
                                     }
                                 }
@@ -400,7 +413,7 @@ namespace Downtime_table
                 }
 
             Insert:
-                var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment) VALUES ");
+                var query = new System.Text.StringBuilder("INSERT INTO downtime (Timestamp, Difference, idIdle , Comment, Recept) VALUES ");
 
                 // Добавление всех значений в запрос
                 var valueList = new List<string>();
@@ -409,7 +422,7 @@ namespace Downtime_table
                 {
                     if (entry._isPastData == false)
                     {
-                        valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}')");
+                        valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}, {entry.Recept.Name}')");
                         countInt++;
                     }
                 }
