@@ -98,10 +98,14 @@ namespace CheckPasses
                 dt.Columns[0].ReadOnly = true;
                 dt.Columns.Add(new DataColumn("Время простоя", typeof(TimeSpan)));
                 dt.Columns[1].ReadOnly = true;
+                dt.Columns.Add(new DataColumn("Рецепт", typeof(string)));
+                dt.Columns[2].ReadOnly = true;
                 dt.Columns.Add(new DataColumn("Вид простоя", typeof(string)));
+                dt.Columns[3].ReadOnly = true;
                 dt.Columns.Add(new DataColumn("Комментарий", typeof(string)));
+                dt.Columns[4].ReadOnly = true;
 
-                string query = "SELECT Timestamp, Difference, name, Comment FROM spslogger.downtime\r\nleft join ididles on\r\ndowntime.idIdle = ididles.id where downtime.Timestamp >= @startDate and downtime.Timestamp <= @endDate";
+                string query = "SELECT Timestamp, Difference, Recept, name, Comment FROM spslogger.downtime\r\nleft join ididles on\r\ndowntime.idIdle = ididles.id where downtime.Timestamp >= @startDate and downtime.Timestamp <= @endDate";
 
                 using (MySqlCommand cmd = new MySqlCommand(query, _mCon)) 
                 {
@@ -112,11 +116,19 @@ namespace CheckPasses
                     {
                         while (reader.Read())
                         {
+                            string recept;
+
+                            if (!reader.IsDBNull(2))
+                                recept = reader.GetString(2);
+                            else
+                                recept = "Не указано";
+
                             DataRow dr = dt.NewRow();
                             dr["Время начала"] = reader.GetDateTime(0);
                             dr["Время простоя"] = reader.GetTimeSpan(1);
-                            dr["Вид простоя"] = reader.GetString(2);
-                            dr["Комментарий"] = reader.GetString(3);
+                            dr["Рецепт"] = recept;
+                            dr["Вид простоя"] = reader.GetString(3);
+                            dr["Комментарий"] = reader.GetString(4);
                             dt.Rows.Add(dr);
                         }
                         reader.Close();
