@@ -180,34 +180,37 @@ namespace Downtime_table
                                 {
                                     foreach (var item in _ServerRecepts)
                                     {
+                                        string StringTypeDownTime, Comment;
+
                                         if (item.Name == name)
                                         {
-                                            var q = reader.GetInt32(0);
-                                            var w = reader.GetDateTime(1);
-                                            var y = reader.GetTimeSpan(2);
-                                            var rec = recept;
-                                            var zzx = reader.GetInt32(5);
-                                            string rqrwq = reader.IsDBNull(6) ? null : reader.GetString(6);
-                                            string f = reader.IsDBNull(7) ? null : reader.GetString(7);
-
-                                            if(f == null)
+                                            if(!await reader.IsDBNullAsync(6))
                                             {
-                                                f = "Нету данных";
+                                                StringTypeDownTime = reader.GetString(6);
                                             }
-                                            if(rqrwq == null)
+                                            else
                                             {
-                                                rqrwq = "Нету данных";
+                                                StringTypeDownTime = "Нету данных";
+                                            }
+
+                                            if (!await reader.IsDBNullAsync(7))
+                                            {
+                                                Comment = reader.GetString(7);
+                                            }
+                                            else
+                                            {
+                                                Comment = "Нету данных";
                                             }
 
                                             datesLocal.Add
                                                 (new Date(
-                                                            q,
-                                                            w,
-                                                            y,
-                                                            rec,
-                                                            zzx,
-                                                            rqrwq,
-                                                            f)
+                                                    reader.GetInt32(0),
+                                                    reader.GetDateTime(1),
+                                                    reader.GetTimeSpan(2),
+                                                    recept,
+                                                    reader.GetInt32(5),
+                                                    StringTypeDownTime,
+                                                    Comment)
                                                 );
                                         }
                                     }
