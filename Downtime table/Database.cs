@@ -79,10 +79,11 @@ namespace Downtime_table
 
         public List<Date> GetDate()
         {
-            if(_resultDate != null && _resultDate.Count > 0)
+            if (_resultDate != null && _resultDate.Count > 0)
                 return _resultDate;
-            else 
-                return null; 
+            else
+                Console.WriteLine("Нету данных");
+                return _resultDate; 
         }
 
         private List<Date> ChangeViewResult(Recept recept, List<Date> main)
