@@ -133,6 +133,7 @@ namespace Downtime_table
                 if (dt.NameRecept == nextDt.NameRecept)
                 {
                     result = nextDt.DateTime - dt.DateTime;
+                    Console.WriteLine($"Начало {dt.DateTime} - {dt.NameRecept} сравнивается с {nextDt.DateTime} - {nextDt.NameRecept}");
                 }
 
                 TimeSpan timeSpan = recept.Time;
