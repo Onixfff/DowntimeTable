@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NLog;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -20,9 +21,12 @@ namespace Downtime_table
         private List<Date> mainDate;
         private DataSet _ds = new DataSet();
         private List<DateIdle> _idles = new List<DateIdle>();
+        private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 
         public Form1()
         {
+            logger.Info("Logon by {user} from {ip_address}", "Kenny", "127.0.0.1"); // Logon by "Kenny" from "127.0.0.1"
+            logger.Debug("{shopitem} added to basket by {user}", new { Id = 6, Name = "Jacket", Color = "Orange" }, "Kenny");
             InitializeComponent();
             button1.Enabled = false;
             var color = Color.FromArgb(255,255,255);
