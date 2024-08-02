@@ -45,7 +45,7 @@ namespace Downtime_table
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
                 sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 07:30:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:29:00'";
-                sqlLastData = $"select\r\nf1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment\r\nfrom downTime as f1 \r\nleft join recepttime as f2 on f1.Recept = f2.Name \r\nleft join ididles as f3 on f1.idIdle = f3.name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 08:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:29:00'";
+                sqlLastData = $"select\r\nf1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment\r\nfrom downTime as f1 \r\nleft join recepttime as f2 on f1.Recept = f2.Name \r\nleft join ididles as f3 on f1.idIdle = f3.name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 07:30:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:29:00'";
             }
             else
             {
