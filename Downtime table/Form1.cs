@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Downtime_table
@@ -36,6 +37,16 @@ namespace Downtime_table
 
         private async void Form1_Load(object sender, EventArgs e)
         {
+
+            await Task.Run(async () =>
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    logger.Info("{0} Log Test", i);
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                }
+            });
+
             DateTime _currentDate = DateTime.Now;
             await _database.GetMain(_currentDate, dataGridView1);
 
