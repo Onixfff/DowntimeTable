@@ -1,7 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 using NLog;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
