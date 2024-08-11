@@ -1,4 +1,6 @@
-﻿namespace Downtime_table
+﻿using NLog;
+
+namespace Downtime_table
 {
     partial class Form1
     {
@@ -13,6 +15,7 @@
         /// <param name="disposing">истинно, если управляемый ресурс должен быть удален; иначе ложно.</param>
         protected override void Dispose(bool disposing)
         {
+            LogManager.Shutdown();
             if (disposing && (components != null))
             {
                 components.Dispose();

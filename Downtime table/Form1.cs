@@ -22,7 +22,7 @@ namespace Downtime_table
         private List<Date> mainDate;
         private DataSet _ds = new DataSet();
         private List<DateIdle> _idles = new List<DateIdle>();
-        private static NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
+        private static ILogger logger = LogManager.GetCurrentClassLogger();
 
         public Form1()
         {
@@ -37,16 +37,6 @@ namespace Downtime_table
 
         private async void Form1_Load(object sender, EventArgs e)
         {
-
-            await Task.Run(async () =>
-            {
-                for (int i = 0; i < 100; i++)
-                {
-                    logger.Info("{0} Log Test", i);
-                    await Task.Delay(TimeSpan.FromSeconds(1));
-                }
-            });
-
             DateTime _currentDate = DateTime.Now;
             await _database.GetMain(_currentDate, dataGridView1);
 

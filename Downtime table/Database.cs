@@ -1,5 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -40,7 +41,8 @@ namespace Downtime_table
             TimeSpan timeOfDay = currentTime.TimeOfDay;
 
             _idles = await GetIdlesAsync();
-            
+
+
 
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
