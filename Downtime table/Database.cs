@@ -44,8 +44,6 @@ namespace Downtime_table
 
             _idles = await GetIdlesAsync();
 
-
-
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
                 sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 07:30:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:29:00'";
@@ -224,6 +222,11 @@ namespace Downtime_table
                         }
                     }
                 }
+                catch (TimeoutException ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Error(ex, "ReturnLastDataAsync > Error (TimeoutException ex)");
+                }
                 catch (Exception ex)
                 {
                     MessageBox.Show(ex.Message);
@@ -256,6 +259,11 @@ namespace Downtime_table
                         else
                             MessageBox.Show(ex.Message);
                     }
+                    catch (TimeoutException ex)
+                    {
+                        MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        logger.Error(ex, "ReturnDataAsync > Error (TimeoutException ex)");
+                    }
 
                 Select:
 
@@ -275,6 +283,11 @@ namespace Downtime_table
                             reader.Close();
                         }
                     }
+                }
+                catch (TimeoutException ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Error(ex, "ReturnDataAsync > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
@@ -309,6 +322,11 @@ namespace Downtime_table
                             MessageBox.Show(ex.Message);
                         }
                     }
+                    catch (TimeoutException ex)
+                    {
+                        MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        logger.Error(ex, "GetIdlesAsync > Error (TimeoutException ex)");
+                    }
 
                 Select:
                     string query = "SELECT * FROM spslogger.ididles;";
@@ -333,6 +351,11 @@ namespace Downtime_table
                         }
                     }
 
+                }
+                catch (TimeoutException ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Error(ex, "GetIdlesAsync > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
@@ -478,6 +501,11 @@ namespace Downtime_table
                             reader.Close();
                         }
                     }
+                }
+                catch (TimeoutException ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Error(ex, "GetRecept > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
@@ -734,6 +762,11 @@ namespace Downtime_table
                             MessageBox.Show(ex.Message);
                         }
                     }
+                    catch(TimeoutException ex)
+                    {
+                        MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        logger.Error(ex, "GetLocalPCRecepts > Error (TimeoutException ex)");
+                    }
 
                 Select:
 
@@ -754,6 +787,11 @@ namespace Downtime_table
                         return recepts;
                     }
                 }
+                catch (TimeoutException ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Error(ex, "GetLocalPCRecepts > Error (TimeoutException ex)");
+                }
                 catch (Exception ex)
                 {
                     MessageBox.Show(ex.Message);
@@ -765,6 +803,7 @@ namespace Downtime_table
 
         private async Task<List<Recept>> GetServerRecepts()
         {
+            logger.Trace("GetServerRecepts > Start");
             string query = "SELECT Name FROM spslogger.receptTime group by Name;";
 
             using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
@@ -791,12 +830,24 @@ namespace Downtime_table
                 catch(MySqlException ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Error(ex, "GetServerRecepts > Error (MySqlException ex)");
+
+                }
+                catch(TimeoutException ex)
+                {
+                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Error(ex, "GetServerRecepts > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logger.Error(ex, "GetServerRecepts > Error (Exception ex)");
                 }
-                finally { await connection.CloseAsync(); }
+                finally 
+                { 
+                    await connection.CloseAsync();
+                    logger.Trace("GetServerRecepts > END");
+                }
             }
             
             return null;

@@ -39,7 +39,19 @@ namespace Downtime_table
             await _database.GetMain(_currentDate, dataGridView1);
 
             _recepts = await _database.GetRecept();
+
+            if (_recepts == null)
+            {
+                throw new Exception("Form1_Load (Ошибка _recepts == null)");
+            }
+
             _idles = _database.GetIdles();
+            
+            if( _idles == null)
+            {
+                throw new Exception("Form1_Load (Ошибка idles == null)");
+            }
+
             ChangeComboBoxRecepts();
 
             isUpdate = true;

@@ -13,15 +13,7 @@ namespace Downtime_table
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            try
-            {
-                Application.Run(new Form1());
-
-            }
-            catch (Exception ex) 
-            {
-                MessageBox.Show(ex.InnerException.ToString(),"Ошибка",MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            Application.Run(new Form1());
         }
     }
 }
