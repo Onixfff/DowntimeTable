@@ -26,8 +26,6 @@ namespace Downtime_table
 
         public Form1()
         {
-            logger.Info("Logon by {user} from {ip_address}", "Kenny", "127.0.0.1"); // Logon by "Kenny" from "127.0.0.1"
-            logger.Debug("{shopitem} added to basket by {user}", new { Id = 6, Name = "Jacket", Color = "Orange" }, "Kenny");
             InitializeComponent();
             button1.Enabled = false;
             var color = Color.FromArgb(255,255,255);
