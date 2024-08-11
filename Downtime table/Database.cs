@@ -1,4 +1,5 @@
 ﻿using MySql.Data.MySqlClient;
+using NLog;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -23,11 +24,13 @@ namespace Downtime_table
         private List<Recept> _LocalPCRecepts = new List<Recept>();
         private List<Recept> _ServerRecepts = new List<Recept>();
         private List<Date> _resultDate = new List<Date>();
+        private static ILogger logger = LogManager.GetCurrentClassLogger();
 
         private string _errorOldBdMessage = "Unknown system variable 'lower_case_table_names'";
 
         public async Task<bool> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
+            logger.Trace("GetMain > Start");
             //Обновляет данные из локольной базы пк на сервер для получения recepts
             _ServerRecepts = await GetServerRecepts();
             _LocalPCRecepts = await GetLocalPCRecepts();

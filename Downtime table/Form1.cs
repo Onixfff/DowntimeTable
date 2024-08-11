@@ -35,6 +35,7 @@ namespace Downtime_table
 
         private async void Form1_Load(object sender, EventArgs e)
         {
+            logger.Trace("Form1_load > Start");
             DateTime _currentDate = DateTime.Now;
             await _database.GetMain(_currentDate, dataGridView1);
 
