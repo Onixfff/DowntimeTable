@@ -69,6 +69,8 @@ namespace Downtime_table
                 pictureBox1.SendToBack();
                 isUpdate = false;
             }
+
+            logger.Trace("Form1_load > End");
         }
 
         private void ChangeDataGridView(List<Date> date, string ReceptName)
