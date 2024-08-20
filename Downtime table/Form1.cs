@@ -42,14 +42,19 @@ namespace Downtime_table
 
             if (_recepts == null)
             {
-                throw new Exception("Form1_Load (Ошибка _recepts == null)");
+                var error = "Form1_Load (Ошибка _recepts == null)";
+                logger.Error(new Exception(error), "Ошибка получения данных");
+                throw new Exception(error);
+                throw new Exception();
             }
 
             _idles = _database.GetIdles();
             
             if( _idles == null)
             {
-                throw new Exception("Form1_Load (Ошибка idles == null)");
+                var error = "Form1_Load (Ошибка idles == null)";
+                logger.Error(new Exception(error), "Ошибка получения данных");
+                throw new Exception(error);
             }
 
             ChangeComboBoxRecepts();
@@ -59,6 +64,7 @@ namespace Downtime_table
 
             if (_ds == null)
             {
+                logger.Error(new Exception("_ds = null"),"Ошибка получения данных");
                 MessageBox.Show("Ошибка получения данных", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             else
