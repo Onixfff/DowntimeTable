@@ -23,13 +23,18 @@ namespace Downtime_table
         private List<Recept> _LocalPCRecepts = new List<Recept>();
         private List<Recept> _ServerRecepts = new List<Recept>();
         private List<Date> _resultDate = new List<Date>();
-        private static ILogger logger = LogManager.GetCurrentClassLogger();
+        private ILogger _logger;
 
         private string _errorOldBdMessage = "Unknown system variable 'lower_case_table_names'";
 
+        public Database(ILogger logger)
+        {
+            _logger = logger;
+        }
+
         public async Task<bool> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
-            logger.Trace("GetMain > Start");
+            _logger.Trace("GetMain > Start");
             //Обновляет данные из локольной базы пк на сервер для получения recepts
             _ServerRecepts = await GetServerRecepts();
             _LocalPCRecepts = await GetLocalPCRecepts();
@@ -225,7 +230,7 @@ namespace Downtime_table
                 catch (TimeoutException ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    logger.Error(ex, "ReturnLastDataAsync > Error (TimeoutException ex)");
+                    _logger.Error(ex, "ReturnLastDataAsync > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
@@ -262,7 +267,7 @@ namespace Downtime_table
                     catch (TimeoutException ex)
                     {
                         MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        logger.Error(ex, "ReturnDataAsync > Error (TimeoutException ex)");
+                        _logger.Error(ex, "ReturnDataAsync > Error (TimeoutException ex)");
                     }
 
                 Select:
@@ -287,7 +292,7 @@ namespace Downtime_table
                 catch (TimeoutException ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    logger.Error(ex, "ReturnDataAsync > Error (TimeoutException ex)");
+                    _logger.Error(ex, "ReturnDataAsync > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
@@ -325,7 +330,7 @@ namespace Downtime_table
                     catch (TimeoutException ex)
                     {
                         MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        logger.Error(ex, "GetIdlesAsync > Error (TimeoutException ex)");
+                        _logger.Error(ex, "GetIdlesAsync > Error (TimeoutException ex)");
                     }
 
                 Select:
@@ -355,7 +360,7 @@ namespace Downtime_table
                 catch (TimeoutException ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    logger.Error(ex, "GetIdlesAsync > Error (TimeoutException ex)");
+                    _logger.Error(ex, "GetIdlesAsync > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
@@ -505,7 +510,7 @@ namespace Downtime_table
                 catch (TimeoutException ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    logger.Error(ex, "GetRecept > Error (TimeoutException ex)");
+                    _logger.Error(ex, "GetRecept > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
@@ -765,7 +770,7 @@ namespace Downtime_table
                     catch(TimeoutException ex)
                     {
                         MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        logger.Error(ex, "GetLocalPCRecepts > Error (TimeoutException ex)");
+                        _logger.Error(ex, "GetLocalPCRecepts > Error (TimeoutException ex)");
                     }
 
                 Select:
@@ -790,7 +795,7 @@ namespace Downtime_table
                 catch (TimeoutException ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    logger.Error(ex, "GetLocalPCRecepts > Error (TimeoutException ex)");
+                    _logger.Error(ex, "GetLocalPCRecepts > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
@@ -803,7 +808,7 @@ namespace Downtime_table
 
         private async Task<List<Recept>> GetServerRecepts()
         {
-            logger.Trace("GetServerRecepts > Start");
+            _logger.Trace("GetServerRecepts > Start");
             string query = "SELECT Name FROM spslogger.receptTime group by Name;";
 
             using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
@@ -830,23 +835,23 @@ namespace Downtime_table
                 catch(MySqlException ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    logger.Error(ex, "GetServerRecepts > Error (MySqlException ex)");
+                    _logger.Error(ex, "GetServerRecepts > Error (MySqlException ex)");
 
                 }
                 catch(TimeoutException ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    logger.Error(ex, "GetServerRecepts > Error (TimeoutException ex)");
+                    _logger.Error(ex, "GetServerRecepts > Error (TimeoutException ex)");
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    logger.Error(ex, "GetServerRecepts > Error (Exception ex)");
+                    _logger.Error(ex, "GetServerRecepts > Error (Exception ex)");
                 }
                 finally 
                 { 
                     await connection.CloseAsync();
-                    logger.Trace("GetServerRecepts > END");
+                    _logger.Trace("GetServerRecepts > END");
                 }
             }
             

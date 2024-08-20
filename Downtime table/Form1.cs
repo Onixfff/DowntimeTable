@@ -10,7 +10,7 @@ namespace Downtime_table
 {
     public partial class Form1 : Form
     {
-        private Database _database = new Database();
+        private Database _database;
         private List<string> _comments;
         private DataSet _dataSet = new DataSet();
         private bool _isOpen = false;
@@ -21,11 +21,15 @@ namespace Downtime_table
         private List<Date> mainDate;
         private DataSet _ds = new DataSet();
         private List<DateIdle> _idles = new List<DateIdle>();
-        private static ILogger logger = LogManager.GetCurrentClassLogger();
+        private ILogger _logger;
 
-        public Form1()
+        public Form1(ILogger logger)
         {
             InitializeComponent();
+
+            _logger = logger;
+            _database = new Database(_logger);
+
             button1.Enabled = false;
             var color = Color.FromArgb(255,255,255);
             pictureBox1.BackColor = color;
@@ -34,7 +38,7 @@ namespace Downtime_table
 
         private async void Form1_Load(object sender, EventArgs e)
         {
-            logger.Trace("Form1_load > Start");
+            _logger.Trace("Form1_load > Start");
             DateTime _currentDate = DateTime.Now;
             await _database.GetMain(_currentDate, dataGridView1);
 
@@ -43,7 +47,7 @@ namespace Downtime_table
             if (_recepts == null)
             {
                 var error = "Form1_Load (Ошибка _recepts == null)";
-                logger.Error(new Exception(error), "Ошибка получения данных");
+                _logger.Error(new Exception(error), "Ошибка получения данных");
                 throw new Exception(error);
                 throw new Exception();
             }
@@ -53,7 +57,7 @@ namespace Downtime_table
             if( _idles == null)
             {
                 var error = "Form1_Load (Ошибка idles == null)";
-                logger.Error(new Exception(error), "Ошибка получения данных");
+                _logger.Error(new Exception(error), "Ошибка получения данных");
                 throw new Exception(error);
             }
 
@@ -64,7 +68,7 @@ namespace Downtime_table
 
             if (_ds == null)
             {
-                logger.Error(new Exception("_ds = null"),"Ошибка получения данных");
+                _logger.Error(new Exception("_ds = null"),"Ошибка получения данных");
                 MessageBox.Show("Ошибка получения данных", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             else
@@ -76,7 +80,7 @@ namespace Downtime_table
                 isUpdate = false;
             }
 
-            logger.Trace("Form1_load > End");
+            _logger.Trace("Form1_load > End");
         }
 
         private void ChangeDataGridView(List<Date> date, string ReceptName)
