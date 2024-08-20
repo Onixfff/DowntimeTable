@@ -1,6 +1,4 @@
-﻿using MySql.Data.Types;
-using Mysqlx.Crud;
-using System;
+﻿using System;
 
 namespace Downtime_table
 {
