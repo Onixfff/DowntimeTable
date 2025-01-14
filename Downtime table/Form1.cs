@@ -49,7 +49,6 @@ namespace Downtime_table
                 var error = "Form1_Load (Ошибка _recepts == null)";
                 _logger.Error(new Exception(error), "Ошибка получения данных");
                 throw new Exception(error);
-                throw new Exception();
             }
 
             _idles = _database.GetIdles();

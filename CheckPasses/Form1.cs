@@ -12,7 +12,7 @@ namespace CheckPasses
     public partial class Form1 : Form
     {
         private string _conn;
-        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["conn5"].ConnectionString);
+        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString);
         private DataSet _ds = new DataSet();
         private DateTime _thisDate = DateTime.Now;
         private DowntimeAnalyzer _analyzer = new DowntimeAnalyzer();

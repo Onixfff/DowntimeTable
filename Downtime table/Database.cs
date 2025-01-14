@@ -129,6 +129,7 @@ namespace Downtime_table
                             break;
                         }
                     }
+
                     if(recept == null)
                         throw new Exception("Ошибка в нахождении похожего recept");
                 }
@@ -765,6 +766,7 @@ namespace Downtime_table
                         else
                         {
                             MessageBox.Show(ex.Message);
+                            return null;
                         }
                     }
                     catch(TimeoutException ex)
@@ -880,10 +882,10 @@ namespace Downtime_table
             }
         }
 
-        private async void ChangeDBReceptTime(List<Recept> recepts)
+        private async Task ChangeDBReceptTime(List<Recept> recepts)
         {
             string sqlInsert = "INSERT INTO spslogger.recepttime (Name, Time) VALUES (@Name, @Time)";
-
+            
             using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
             {
                 try
