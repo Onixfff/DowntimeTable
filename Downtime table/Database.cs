@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -24,12 +26,47 @@ namespace Downtime_table
         private List<Recept> _ServerRecepts = new List<Recept>();
         private List<Date> _resultDate = new List<Date>();
         private ILogger _logger;
+        private ClassLibraryGetIp.Main _mainInstance = new ClassLibraryGetIp.Main();
+        private string PcConnectionString, ServerConnectionString;
 
         private string _errorOldBdMessage = "Unknown system variable 'lower_case_table_names'";
 
-        public Database(ILogger logger)
+        private Database(ILogger logger)
         {
             _logger = logger;
+        }
+
+        public static async Task<Database> CreateAsync(ILogger logger)
+        {
+            var db = new Database(logger);
+            await db.updateDbConnection();
+            return db;
+        }
+
+        private async Task updateDbConnection()
+        {
+            var PcConnectionString = await ChangeMconAsync("operator", ConfigurationManager.ConnectionStrings["Pc"].ConnectionString);
+            var ServerConnectionString = await ChangeMconAsync("server", ConfigurationManager.ConnectionStrings["Server"].ConnectionString);
+
+            if(PcConnectionString.error != null || ServerConnectionString.error != null)
+            {
+                string message = "Errro\n";
+
+                if(PcConnectionString.error != null)
+                {
+                    message += $"PcConnection = {PcConnectionString.error}\n";
+                }
+                else if(ServerConnectionString.error != null)
+                {
+                    message += $"ServerConnection = {ServerConnectionString.error}\n";
+                }
+                throw new Exception(message);
+            }
+            else
+            {
+                this.PcConnectionString = PcConnectionString.updateConnection;
+                this.ServerConnectionString = ServerConnectionString.updateConnection;
+            }
         }
 
         public async Task<bool> GetMain(DateTime dateTime, DataGridView dataGridView1)
@@ -91,6 +128,35 @@ namespace Downtime_table
             else
                 Console.WriteLine("Нету данных");
                 return _resultDate; 
+        }
+
+        private async Task<(string updateConnection, string error)> ChangeMconAsync(string nameIp, string _connectionString)
+        {
+            var ip = await _mainInstance.GetIp(nameIp);
+            string error;
+
+            try
+            {
+                if (ip.GetIp() != null)
+                {
+                    string updatedConnectionString = Regex.Replace(_connectionString, @"(?i)server=[^;]+", $"Server={ip.GetIp()}", RegexOptions.IgnoreCase);
+                    return (updatedConnectionString, null);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                error = "Не получилось соеденится с сервером. Попробуйте позже...";
+                MessageBox.Show(error);
+                return (null, error);
+            }
+            catch (Exception)
+            {
+                error = "Непредвиденная ошибка. Повторите попытку позже или свяжитесь с администратором";
+                MessageBox.Show(error);
+                return (null, error);
+            }
+
+            return (null, "Неизвестная ошибка.");
         }
 
         private List<Date> ChangeViewResult(Recept recept, List<Date> main)
@@ -159,7 +225,7 @@ namespace Downtime_table
         {
             List<Date> datesLocal = new List<Date>();
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
             {
                 try
                 {
@@ -249,7 +315,7 @@ namespace Downtime_table
         {
             List<Date> datesLocal = new List<Date>();
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(PcConnectionString))
             {
                 try
                 {
@@ -309,7 +375,7 @@ namespace Downtime_table
 
         public async Task<List<DateIdle>> GetIdlesAsync()
         {
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
             {
                 try
                 {
@@ -415,7 +481,7 @@ namespace Downtime_table
         {
             bool isComplite = false;
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString)) 
+            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString)) 
             {
                 try
                 {
@@ -490,7 +556,7 @@ namespace Downtime_table
 
             List<Recept> recept = new List<Recept>();
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
             {
                 try
                 {
@@ -524,7 +590,7 @@ namespace Downtime_table
 
         public async Task<string[]> GetCommentsAsync()
         {
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
             {
                 try
                 {
@@ -749,7 +815,7 @@ namespace Downtime_table
 
         private async Task<List<Recept>> GetLocalPCRecepts()
         {
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Pc"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(PcConnectionString))
             {
                 try
                 {
@@ -813,7 +879,7 @@ namespace Downtime_table
             _logger.Trace("GetServerRecepts > Start");
             string query = "SELECT Name FROM spslogger.receptTime group by Name;";
 
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
             {
                 try
                 {
@@ -886,7 +952,7 @@ namespace Downtime_table
         {
             string sqlInsert = "INSERT INTO spslogger.recepttime (Name, Time) VALUES (@Name, @Time)";
             
-            using (MySqlConnection connection = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
             {
                 try
                 {

@@ -28,8 +28,6 @@ namespace Downtime_table
             InitializeComponent();
 
             _logger = logger;
-            _database = new Database(_logger);
-
             button1.Enabled = false;
             var color = Color.FromArgb(255,255,255);
             pictureBox1.BackColor = color;
@@ -38,6 +36,17 @@ namespace Downtime_table
 
         private async void Form1_Load(object sender, EventArgs e)
         {
+            try
+            {
+                _database = await Database.CreateAsync(_logger);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Application.Exit(); // Завершение приложения
+                return;
+            }
+
             _logger.Trace("Form1_load > Start");
             DateTime _currentDate = DateTime.Now;
             await _database.GetMain(_currentDate, dataGridView1);
