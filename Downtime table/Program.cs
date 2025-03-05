@@ -17,7 +17,7 @@ namespace Downtime_table
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            Application.Run(new Form1(_logger));
+            Application.Run(new Production(_logger));
         }
     }
 }

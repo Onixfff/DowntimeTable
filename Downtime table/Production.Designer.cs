@@ -2,7 +2,7 @@
 
 namespace Downtime_table
 {
-    partial class Form1
+    partial class Production
     {
         /// <summary>
         /// Обязательная переменная конструктора.
@@ -31,7 +31,7 @@ namespace Downtime_table
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Production));
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.toolStripButton1 = new System.Windows.Forms.ToolStripButton();

@@ -8,7 +8,7 @@ using System.Windows.Forms;
 
 namespace Downtime_table
 {
-    public partial class Form1 : Form
+    public partial class Production : Form
     {
         private Database _database;
         private List<string> _comments;
@@ -23,7 +23,7 @@ namespace Downtime_table
         private List<DateIdle> _idles = new List<DateIdle>();
         private ILogger _logger;
 
-        public Form1(ILogger logger)
+        public Production(ILogger logger)
         {
             InitializeComponent();
 
@@ -472,7 +472,7 @@ namespace Downtime_table
 
         private void toolStripButton3_Click(object sender, EventArgs e)
         {
-            CheckPasses.Form1 form1 = new CheckPasses.Form1();
+            CheckPasses.Arhiv form1 = new CheckPasses.Arhiv();
             form1.ShowDialog();
         }
 

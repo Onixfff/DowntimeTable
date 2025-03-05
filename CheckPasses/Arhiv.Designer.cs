@@ -1,6 +1,6 @@
 ﻿namespace CheckPasses
 {
-    partial class Form1
+    partial class Arhiv
     {
         /// <summary>
         /// Обязательная переменная конструктора.

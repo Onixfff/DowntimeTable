@@ -6,16 +6,20 @@ using System.Data;
 using System.Globalization;
 using LiveCharts;
 using LiveCharts.Wpf;
+using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace CheckPasses
 {
-    public partial class Form1 : Form
+    public partial class Arhiv : Form
     {
         private string _conn;
-        private MySqlConnection _mCon = new MySqlConnection(ConfigurationManager.ConnectionStrings["Server"].ConnectionString);
+        private MySqlConnection _mCon;
         private DataSet _ds = new DataSet();
         private DateTime _thisDate = DateTime.Now;
         private DowntimeAnalyzer _analyzer = new DowntimeAnalyzer();
+        private ClassLibraryGetIp.Main _mainInstance = new ClassLibraryGetIp.Main();
+        private string ServerConnectionString;
 
         private enum MountEnum
         {
@@ -33,14 +37,18 @@ namespace CheckPasses
             Декабрь
         };
 
-        public Form1()
+        public Arhiv()
         {
             InitializeComponent();
             pieChart1.Visible = false;
         }
 
-        private void Form1_Load(object sender, System.EventArgs e)
+        private async void Form1_Load(object sender, System.EventArgs e)
         {
+            await updateDbConnection();
+
+            _mCon = new MySqlConnection(ServerConnectionString);
+            
             this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
             numericUpDown1.Minimum = 2000;
             numericUpDown1.Maximum = dateTimePicker_before.Value.Year;
@@ -48,6 +56,58 @@ namespace CheckPasses
             ChangeStartDate();
             ChangeViewDataGridView();
             ChangeComboBoxItems();
+        }
+
+        private async Task<(string updateConnection, string error)> ChangeMconAsync(string nameIp, string _connectionString)
+        {
+            var ip = await _mainInstance.GetIp(nameIp);
+            string error;
+
+            try
+            {
+                if (ip.GetIp() != null)
+                {
+                    string updatedConnectionString = Regex.Replace(_connectionString, @"(?i)server=[^;]+", $"Server={ip.GetIp()}", RegexOptions.IgnoreCase);
+                    return (updatedConnectionString, null);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                error = "Не получилось соеденится с сервером. Попробуйте позже...";
+                MessageBox.Show(error);
+                return (null, error);
+            }
+            catch (Exception)
+            {
+                error = "Непредвиденная ошибка. Повторите попытку позже или свяжитесь с администратором";
+                MessageBox.Show(error);
+                return (null, error);
+            }
+
+            return (null, "Неизвестная ошибка.");
+        }
+
+        private async Task updateDbConnection()
+        {
+            var ServerConnectionString = await ChangeMconAsync("server", ConfigurationManager.ConnectionStrings["Server"].ConnectionString);
+
+            if (ServerConnectionString.error != null)
+            {
+                string message = "Errro\n";
+
+                if (ServerConnectionString.error != null)
+                {
+                    message += $"ServerConnection = {ServerConnectionString.error}\n";
+                }
+                else
+                {
+                    throw new Exception(message);
+                }
+            }
+            else
+            {
+                this.ServerConnectionString = ServerConnectionString.updateConnection;
+            }
         }
 
         private void ChangeComboBoxItems()
