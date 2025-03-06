@@ -77,8 +77,9 @@
     <StartupObject>Downtime_table.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="ClassLibraryGetIp">
-      <HintPath>..\..\ClassLibraryGetIp\ClassLibraryGetIp\bin\Debug\ClassLibraryGetIp.dll</HintPath>
+    <Reference Include="ClassLibraryGetIp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=b879ace4ea7c97e1, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Library\ClassLibraryGetIp\ClassLibraryGetIp\bin\Debug\ClassLibraryGetIp.dll</HintPath>
     </Reference>
     <Reference Include="Google.Protobuf, Version=3.28.2.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604, processorArchitecture=MSIL">
       <HintPath>..\packages\Google.Protobuf.3.28.2\lib\net45\Google.Protobuf.dll</HintPath>
@@ -100,7 +101,7 @@
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\ClassLibraryGetIp\ClassLibraryGetIp\bin\Debug\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\Library\ClassLibraryGetIp\ClassLibraryGetIp\bin\Debug\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="NLog, Version=5.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
       <HintPath>..\packages\NLog.5.3.4\lib\net46\NLog.dll</HintPath>

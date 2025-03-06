@@ -7,9 +7,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Downtime table", "Downtime 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheckPasses", "CheckPasses\CheckPasses.csproj", "{B5D8E7AB-9CD0-4582-879C-331496C90659}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Library", "Library", "{42F6B903-7334-4F32-93C4-98F3ACD20D72}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Library", "Library", "{E92B1F88-D949-425A-B6E7-0608340E8524}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClassLibraryGetIp", "..\ClassLibraryGetIp\ClassLibraryGetIp\ClassLibraryGetIp.csproj", "{EF7FE000-5485-4384-9D25-1CF40ECD5E9B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClassLibraryGetIp", "Library\ClassLibraryGetIp\ClassLibraryGetIp\ClassLibraryGetIp.csproj", "{EF7FE000-5485-4384-9D25-1CF40ECD5E9B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,7 +34,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{EF7FE000-5485-4384-9D25-1CF40ECD5E9B} = {42F6B903-7334-4F32-93C4-98F3ACD20D72}
+		{EF7FE000-5485-4384-9D25-1CF40ECD5E9B} = {E92B1F88-D949-425A-B6E7-0608340E8524}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0697C0E8-DBC6-4C91-9A24-92D408C4F5C3}
