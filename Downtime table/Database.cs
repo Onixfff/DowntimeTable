@@ -75,7 +75,7 @@ namespace Downtime_table
             //Обновляет данные из локольной базы пк на сервер для получения recepts
             _ServerRecepts = await GetServerRecepts();
             _LocalPCRecepts = await GetLocalPCRecepts();
-            ChecksDataDifferenceRecepts();
+            await ChecksDataDifferenceRecepts();
 
             DataSet ds = new DataSet();
             string sql, sqlLastData;
@@ -182,7 +182,6 @@ namespace Downtime_table
             {
 
                 string nameRecept = newDate[i].NameRecept;
-                TimeSpan time;
                 Recept recept = null;
 
                 if (_ServerRecepts != null && _ServerRecepts.Count > 0)
@@ -926,7 +925,7 @@ namespace Downtime_table
             return null;
         }
 
-        private void ChecksDataDifferenceRecepts()
+        private async Task ChecksDataDifferenceRecepts()
         {
             if (_LocalPCRecepts != null && _ServerRecepts != null)
             {
@@ -934,7 +933,7 @@ namespace Downtime_table
 
                 if (recepts.Count >= 1)
                 {
-                    ChangeDBReceptTime(recepts);
+                    await ChangeDBReceptTime(recepts);
                 }
                 else
                 {
