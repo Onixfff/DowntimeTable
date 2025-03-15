@@ -1,11 +1,13 @@
-﻿using MySql.Data.MySqlClient;
+﻿using Downtime_table.Moduls;
+using Downtime_table.Moduls.Data.Sources;
+using Downtime_table.Moduls.Database.Sources;
+using MySql.Data.MySqlClient;
 using NLog;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -15,19 +17,25 @@ namespace Downtime_table
     public class Database
     {  
         private DataSet _dsIdle;
-        public List<Date> datesNew = new List<Date>();
-        private List<Date> datesPast = new List<Date>();
+        
+        private List<ProcessedDate> _processedDate = new List<ProcessedDate>();
+        private List<ArchivedDate> _archivedDate = new List<ArchivedDate>();
+        private List<RawDate> _rawDate = new List<RawDate>();
+        private List<ArchivedDate> _resultDate = new List<ArchivedDate>();
+        
         private List<string> _comments;
         private List<string> _recepts;
-        private List<newDate> newDates = new List<newDate>();
         private bool isNewData;
         List<DateIdle> _idles = new List<DateIdle>();
         private List<Recept> _LocalPCRecepts = new List<Recept>();
         private List<Recept> _ServerRecepts = new List<Recept>();
-        private List<Date> _resultDate = new List<Date>();
         private ILogger _logger;
         private ClassLibraryGetIp.Main _mainInstance = new ClassLibraryGetIp.Main();
-        private string PcConnectionString, ServerConnectionString;
+        private string _pcConnectionString, _serverConnectionString;
+
+        // Источники данных
+        private RawDataSource _rawDataSource;
+        private ArchivedDateSource _archivedDateSource;
 
         private string _errorOldBdMessage = "Unknown system variable 'lower_case_table_names'";
 
@@ -64,64 +72,126 @@ namespace Downtime_table
             }
             else
             {
-                this.PcConnectionString = PcConnectionString.updateConnection;
-                this.ServerConnectionString = ServerConnectionString.updateConnection;
+                this._pcConnectionString = PcConnectionString.updateConnection;
+                this._serverConnectionString = ServerConnectionString.updateConnection;
+                
+                // Инициализация источников данных после получения строк подключения
+                _rawDataSource = new RawDataSource(this._pcConnectionString, _logger);
             }
         }
 
         public async Task<bool> GetMain(DateTime dateTime, DataGridView dataGridView1)
         {
-            _logger.Trace("GetMain > Start");
-            //Обновляет данные из локольной базы пк на сервер для получения recepts
+            try
+            {
+                _logger.Trace("GetMain > Start");
+
+                // Шаг 1: Получение и синхронизация рецептов
+                await SynchronizeRecepts();
+
+                // Шаг 2: Получение данных о простоях
+                await LoadIdlesData();
+                
+                // Обновляем источник архивных данных с актуальным списком рецептов
+                _archivedDateSource = new ArchivedDateSource(_serverConnectionString, _logger, _ServerRecepts);
+
+                // Шаг 3: Формирование SQL-запросов на основе времени
+                (string dataSql, string archiveSql) = GenerateSqlQueries(dateTime);
+
+                // Шаг 4: Получение и обработка данных
+                await ProcessData(dataSql, archiveSql);
+
+                return true;
+            }
+            catch (Exception ex) 
+            {
+                _logger.Error(ex, "Ошибка в GetMain");
+                MessageBox.Show($"{ex.Message}");
+                return false;
+            }
+        }
+
+        // Метод для синхронизации рецептов
+        private async Task SynchronizeRecepts()
+        {
             _ServerRecepts = await GetServerRecepts();
             _LocalPCRecepts = await GetLocalPCRecepts();
             await ChecksDataDifferenceRecepts();
+        }
 
-            DataSet ds = new DataSet();
-            string sql, sqlLastData;
-            DateTime currentTime = dateTime;
+        // Метод для загрузки данных о простоях
+        private async Task LoadIdlesData()
+        {
+            _idles = await GetIdlesAsync();
+        }
+
+        // Метод для генерации SQL-запросов
+        private (string dataSql, string archiveSql) GenerateSqlQueries(DateTime currentTime)
+        {
             DateTime nextData = currentTime.AddDays(1);
             DateTime lastDate = currentTime.AddDays(-1);
-            TimeSpan timeOfDay = currentTime.TimeOfDay;
 
-            _idles = await GetIdlesAsync();
+            string sql, sqlLastData;
 
             if (currentTime.TimeOfDay >= new TimeSpan(8, 30, 0) && currentTime.TimeOfDay < new TimeSpan(20, 29, 0))
             {
-                sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 07:30:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:29:00'";
-                sqlLastData = $"select\r\nf1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment\r\nfrom downTime as f1 \r\nleft join recepttime as f2 on f1.Recept = f2.Name \r\nleft join ididles as f3 on f1.idIdle = f3.name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 07:30:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 20:29:00'";
+                // Дневная смена
+                sql = GenerateDataSql(currentTime, currentTime, "07:30:00", "20:29:00");
+                sqlLastData = GenerateArchiveSql(currentTime, currentTime, "07:30:00", "20:29:00");
+            }
+            else if (currentTime.TimeOfDay <= new TimeSpan(24, 59, 59) && currentTime.TimeOfDay >= new TimeSpan(20, 00, 00))
+            {
+                // Вечерняя смена (начало)
+                sql = GenerateDataSql(currentTime, nextData, "20:00:00", "08:00:00");
+                sqlLastData = GenerateArchiveSql(currentTime, nextData, "20:00:00", "08:00:00");
+            }
+            else if (currentTime.TimeOfDay <= new TimeSpan(8, 29, 00))
+            {
+                // Вечерняя смена (конец)
+                sql = GenerateDataSql(lastDate, currentTime, "20:00:00", "08:00:00");
+                sqlLastData = GenerateArchiveSql(lastDate, currentTime, "20:00:00", "08:00:00");
             }
             else
             {
-                if(currentTime.TimeOfDay <= new TimeSpan(24, 59, 59) && currentTime.TimeOfDay >= new TimeSpan(20, 00, 00))
-                {
-                    sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00';";
-                    sqlLastData = $"select\r\nf1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment\r\nfrom downTime as f1 \r\nleft join recepttime as f2 on f1.Recept = f2.Name \r\nleft join ididles as f3 on f1.idIdle = f3.name where Timestamp >= '{currentTime.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{nextData.ToString("yyyy-MM-dd")} 08:00:00'";
-                }
-                else if(currentTime.TimeOfDay <= new TimeSpan(8, 29, 00))
-                {
-                    sql = $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00';";
-                    sqlLastData = $"select\r\nf1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment\r\nfrom downTime as f1 \r\nleft join recepttime as f2 on f1.Recept = f2.Name \r\nleft join ididles as f3 on f1.idIdle = f3.name where Timestamp >= '{lastDate.ToString("yyyy-MM-dd")} 20:00:00' and Timestamp < '{currentTime.ToString("yyyy-MM-dd")} 08:00:00'";
-
-                }
-                else
-                {
-                    sql = null;
-                    sqlLastData = null;
-                    throw new Exception("Ошибка времени");
-                }
+                throw new Exception("Ошибка времени");
             }
-                
-            datesNew = await ReturnDataAsync(sql);
-            datesPast = await ReturnLastDataAsync(sqlLastData);
 
-            datesNew = CalculateDowntime(newDates);
-
-            _resultDate = DeletesIdenticalData(ref datesNew, datesPast);
-            return true;
+            return (sql, sqlLastData);
         }
 
-        public List<Date> GetDate()
+        // Вспомогательные методы для генерации SQL
+        private string GenerateDataSql(DateTime startDate, DateTime endDate, string startTime, string endTime)
+        {
+            return $"SELECT DBID, Timestamp, Data_52 FROM spslogger.mixreport " +
+                   $"WHERE Timestamp >= '{startDate:yyyy-MM-dd} {startTime}' " +
+                   $"AND Timestamp < '{endDate:yyyy-MM-dd} {endTime}'";
+        }
+
+        private string GenerateArchiveSql(DateTime startDate, DateTime endDate, string startTime, string endTime)
+        {
+            return $"SELECT f1.Id, f1.Timestamp, f1.Difference, f2.Name, f2.Time, f1.idIdle, f3.name, f1.Comment " +
+                   $"FROM downTime AS f1 " +
+                   $"LEFT JOIN recepttime AS f2 ON f1.Recept = f2.Name " +
+                   $"LEFT JOIN ididles AS f3 ON f1.idIdle = f3.name " +
+                   $"WHERE Timestamp >= '{startDate:yyyy-MM-dd} {startTime}' " +
+                   $"AND Timestamp < '{endDate:yyyy-MM-dd} {endTime}'";
+        }
+
+        // Метод для обработки данных
+        private async Task ProcessData(string dataSql, string archiveSql)
+        {
+            // Используем источники данных вместо прямых запросов
+            _rawDate = await _rawDataSource.GetDataAsync(dataSql);
+
+            // Обновляем список рецептов в источнике архивных данных перед запросом
+            _archivedDateSource = new ArchivedDateSource(_serverConnectionString, _logger, _ServerRecepts);
+            _archivedDate = await _archivedDateSource.GetDataAsync(archiveSql);
+
+            _processedDate = CalculateDowntime(_rawDate);
+            _resultDate = DeletesIdenticalData(_processedDate, _archivedDate);
+        }
+
+        public List<ArchivedDate> GetDate()
         {
             if (_resultDate != null && _resultDate.Count > 0)
                 return _resultDate;
@@ -159,222 +229,91 @@ namespace Downtime_table
             return (null, "Неизвестная ошибка.");
         }
 
-        private List<Date> ChangeViewResult(Recept recept, List<Date> main)
-        {
-            List<Date> result = new List<Date>();
+        //private List<Date> ChangeViewResult(Recept recept, List<Date> main)
+        //{
+        //    List<Date> result = new List<Date>();
 
-            foreach (var item in result)
+        //    foreach (var item in result)
+        //    {
+        //        if(item.Recept == recept)
+        //        {
+        //            result.Add(item);
+        //        }
+        //    }
+
+        //    return result;
+        //}
+
+        private List<ProcessedDate> CalculateDowntime(List<RawDate> rawData)
+        {
+            //Четные числа. 0,2,4,6,8,10 ... . Открывающие числа
+            //Нечетные числа 1,3,5,7,9 ... закрывающие числа
+
+            List<ProcessedDate> datesNew = new List<ProcessedDate>();
+
+            // Проверяем, что список не пустой и начинается с четного числа
+            if (rawData == null || rawData.Count == 0)
             {
-                if(item.Recept == recept)
-                {
-                    result.Add(item);
-                }
+                return datesNew;
             }
 
-            return result;
-        }
-
-        private List<Date> CalculateDowntime(List<newDate> newDate)
-        {
-            List<Date> datesNew = new List<Date>();
-
-            for (int i = 0; i < newDate.Count -1; i++)
+            // Проверяем, что первая запись четная
+            if (rawData[0].DBIG % 2 != 0)
             {
+                throw new Exception("Данные должны начинаться с четного числа (открытие)");
+            }
 
-                string nameRecept = newDate[i].NameRecept;
-                Recept recept = null;
+            for (int i = 0; i < rawData.Count - 1; i += 2) // Переходим по две записи
+            {
+                var openRecord = rawData[i];
+                var closeRecord = rawData[i + 1];
 
-                if (_ServerRecepts != null && _ServerRecepts.Count > 0)
+                // Проверяем, что текущая запись четная (открытие)
+                if (openRecord.DBIG % 2 != 0)
                 {
-                    foreach (var item in _ServerRecepts)
-                    {
-                        if(item.Name == nameRecept)
-                        {
-                            recept = new Recept(nameRecept, item.Time);
-                            break;
-                        }
-                    }
-
-                    if(recept == null)
-                        throw new Exception("Ошибка в нахождении похожего recept");
+                    _logger.Error($"Ожидалось четное число (открытие), получено: {openRecord.DBIG}");
+                    throw new Exception($"Ожидалось четное число (открытие), получено: {openRecord.DBIG}");
                 }
 
-                var dt = newDate[i];
-                var nextDt = newDate[i+1];
-                TimeSpan result = TimeSpan.Zero;
-                
-                if (dt.NameRecept == nextDt.NameRecept)
+                // Проверяем, что следующая запись нечетная (закрытие)
+                if (closeRecord.DBIG % 2 != 1)
                 {
-                    result = nextDt.DateTime - dt.DateTime;
-                    Console.WriteLine($"Начало {dt.DateTime} - {dt.NameRecept} сравнивается с {nextDt.DateTime} - {nextDt.NameRecept}");
+                    _logger.Error($"Ожидалось нечетное число (закрытие), получено: {closeRecord.DBIG}");
+                    throw new Exception($"Ожидалось нечетное число (закрытие), получено: {closeRecord.DBIG}");
                 }
 
-                TimeSpan timeSpan = recept.Time;
-
-                if (result.TotalSeconds >= timeSpan.TotalSeconds)
+                // Проверяем, что записи относятся к одному рецепту
+                if (openRecord.NameRecept != closeRecord.NameRecept)
                 {
-                    datesNew.Add(new Date(dt.DBIG, dt.DateTime, result - timeSpan, recept));
+                    _logger.Error($"Несоответствие рецептов: {openRecord.NameRecept} != {closeRecord.NameRecept}");
+                    throw new Exception($"Несоответствие рецептов: {openRecord.NameRecept} != {closeRecord.NameRecept}");
+                }
+
+                Recept recept = _ServerRecepts?.FirstOrDefault(r => r.Name == openRecord.NameRecept);
+
+                if (recept == null)
+                {
+                    _logger.Error($"Рецепт не найден: {openRecord.NameRecept}");
+                    throw new Exception($"Рецепт не найден: {openRecord.NameRecept}");
+                }
+
+                // Вычисляем разницу времени
+                TimeSpan result = closeRecord.DateTime - openRecord.DateTime;
+                Console.WriteLine($"Начало {openRecord.DateTime} - {openRecord.NameRecept} сравнивается с {closeRecord.DateTime} - {closeRecord.NameRecept}");
+
+                // Проверяем, превышает ли разница ожидаемое время
+                if (result.TotalSeconds >= recept.Time.TotalSeconds)
+                {
+                    datesNew.Add(new ProcessedDate(openRecord.DBIG, openRecord.DateTime, result - recept.Time, recept));
                 }
             }
 
             return datesNew;
         }
 
-        private async Task<List<Date>> ReturnLastDataAsync(string query)
-        {
-            List<Date> datesLocal = new List<Date>();
-
-            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
-            {
-                try
-                {
-                    await connection.OpenAsync();
-
-                    using (MySqlCommand command = new MySqlCommand(query, connection))
-                    {
-                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                Recept recept;
-                                var name = reader.IsDBNull(3) ? null : reader.GetString(3);
-                                TimeSpan? time = reader.IsDBNull(4) ? (TimeSpan?)null : reader.GetFieldValue<TimeSpan>(4);
-
-                                if (time != null && name != null)
-                                {
-                                    recept = new Recept(name, time.Value);
-                                }
-                                else
-                                {
-                                    recept = new Recept("Не указано");
-                                }
-
-                                if (_ServerRecepts != null && _ServerRecepts.Count > 0)
-                                {
-                                    foreach (var item in _ServerRecepts)
-                                    {
-                                        string StringTypeDownTime, Comment;
-
-                                        if (item.Name == name)
-                                        {
-                                            if(!await reader.IsDBNullAsync(6))
-                                            {
-                                                StringTypeDownTime = reader.GetString(6);
-                                            }
-                                            else
-                                            {
-                                                StringTypeDownTime = "Нету данных";
-                                            }
-
-                                            if (!await reader.IsDBNullAsync(7))
-                                            {
-                                                Comment = reader.GetString(7);
-                                            }
-                                            else
-                                            {
-                                                Comment = "Нету данных";
-                                            }
-
-                                            datesLocal.Add
-                                                (new Date(
-                                                    reader.GetInt32(0),
-                                                    reader.GetDateTime(1),
-                                                    reader.GetTimeSpan(2),
-                                                    recept,
-                                                    reader.GetInt32(5),
-                                                    StringTypeDownTime,
-                                                    Comment)
-                                                );
-                                        }
-                                    }
-                                }
-                            }
-                            reader.Close();
-                        }
-                    }
-                }
-                catch (TimeoutException ex)
-                {
-                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    _logger.Error(ex, "ReturnLastDataAsync > Error (TimeoutException ex)");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message);
-                }
-                finally
-                {
-                    await connection.CloseAsync();
-                }
-            }
-            return datesLocal;
-        }
-
-        private async Task<List<Date>> ReturnDataAsync(string query)
-        {
-            List<Date> datesLocal = new List<Date>();
-
-            using (MySqlConnection connection = new MySqlConnection(PcConnectionString))
-            {
-                try
-                {
-                    try
-                    {
-                        if (connection.State == ConnectionState.Closed)
-                            await connection.OpenAsync();
-                    }
-                    catch (MySqlException ex)
-                    {
-                        if (ex.Message == _errorOldBdMessage)
-                            goto Select;
-                        else
-                            MessageBox.Show(ex.Message);
-                    }
-                    catch (TimeoutException ex)
-                    {
-                        MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        _logger.Error(ex, "ReturnDataAsync > Error (TimeoutException ex)");
-                    }
-
-                Select:
-
-                    using (MySqlCommand command = new MySqlCommand(query, connection))
-                    {
-                        using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                newDates.Add(new newDate
-                                    (
-                                    reader.GetInt32(0),
-                                    reader.GetDateTime(1),
-                                    reader.GetString(2)
-                                ));
-                            }
-                            reader.Close();
-                        }
-                    }
-                }
-                catch (TimeoutException ex)
-                {
-                    MessageBox.Show(ex.Message, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    _logger.Error(ex, "ReturnDataAsync > Error (TimeoutException ex)");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message);
-                }
-                finally
-                {
-                    await connection.CloseAsync();
-                }
-            }
-            return datesLocal;
-        }
-
         public async Task<List<DateIdle>> GetIdlesAsync()
         {
-            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(_serverConnectionString))
             {
                 try
                 {
@@ -439,19 +378,19 @@ namespace Downtime_table
 
         public void ChangeData(int id, int idIdle)
         {
-            for (int i = 0; i < datesNew.Count; i++)
+            for (int i = 0; i < _processedDate.Count; i++)
             {
-                if (datesNew[i].Id == id)
+                if (_processedDate[i].Id == id)
                 {
-                    datesNew[i].IdTypeDowntime = idIdle;
+                    _processedDate[i].IdTypeDowntime = idIdle;
                 }
             }
 
-            for(int i = 0; i < datesPast.Count; i++)
+            for(int i = 0; i < _archivedDate.Count; i++)
             {
-                if (datesPast[i].Id == id)
+                if (_archivedDate[i].Id == id)
                 {
-                    datesPast[i].IdTypeDowntime = idIdle;
+                    _archivedDate[i].IdTypeDowntime = idIdle;
                 }
             }
         }
@@ -459,19 +398,19 @@ namespace Downtime_table
         public void ChangeData(int id, string comment)
         {
 
-            for (int i = 0; i < datesNew.Count; i++)
+            for (int i = 0; i < _processedDate.Count; i++)
             {
-                if (datesNew[i].Id == id)
+                if (_processedDate[i].Id == id)
                 {
-                    datesNew[i].Comments = comment;
+                    _processedDate[i].Comment = comment;
                 }
             }
 
-            for (int i = 0; i < datesPast.Count; i++)
+            for (int i = 0; i < _archivedDate.Count; i++)
             {
-                if (datesPast[i].Id == id)
+                if (_archivedDate[i].Id == id)
                 {
-                    datesPast[i].Comments = comment;
+                    _archivedDate[i].Comment = comment;
                 }
             }
         }
@@ -480,7 +419,7 @@ namespace Downtime_table
         {
             bool isComplite = false;
 
-            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString)) 
+            using (MySqlConnection connection = new MySqlConnection(_serverConnectionString)) 
             {
                 try
                 {
@@ -491,11 +430,11 @@ namespace Downtime_table
                     var valueList = new List<string>();
                     int countInt = 0;
 
-                    foreach (var entry in datesNew)
+                    foreach (var entry in _processedDate)
                     {
-                        if (entry._isPastData == false)
+                        if (entry.IsPastData == false)
                         {
-                            valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comments.Replace("'", "''")}',  '{entry.Recept.Name}')");
+                            valueList.Add($"('{entry.Timestamp:yyyy-MM-dd HH:mm:ss}', '{entry.Difference}', '{entry.IdTypeDowntime}', '{entry.Comment.Replace("'", "''")}',  '{entry.Recept.Name}')");
                             countInt++;
                         }
                     }
@@ -504,7 +443,7 @@ namespace Downtime_table
                     query.Append(string.Join(", ", valueList));
                     query.Append(";");
 
-                    string queryUpdate = GetUpdateQueryAsync(datesPast);
+                    string queryUpdate = GetUpdateQueryAsync(_archivedDate);
 
                     if (countInt > 0 && queryUpdate != null)
                     {
@@ -555,7 +494,7 @@ namespace Downtime_table
 
             List<Recept> recept = new List<Recept>();
 
-            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(_serverConnectionString))
             {
                 try
                 {
@@ -589,7 +528,7 @@ namespace Downtime_table
 
         public async Task<string[]> GetCommentsAsync()
         {
-            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(_serverConnectionString))
             {
                 try
                 {
@@ -640,9 +579,9 @@ namespace Downtime_table
             return isNewData;
         }
 
-        public List<Date> GetListDate()
+        public List<ArchivedDate> GetListDate()
         {
-            return datesPast;
+            return _archivedDate;
         }
 
         /// <summary>
@@ -650,7 +589,7 @@ namespace Downtime_table
         /// </summary>
         /// <param name="datesNew">Данные для обновления</param>
         /// <returns>if(datesNew.Count <= 0) return null; else return string sql</returns>
-        public string GetUpdateQueryAsync(List<Date> datesNew)
+        public string GetUpdateQueryAsync(List<ArchivedDate> datesNew)
         {
             string query = "Update downtime set ";
             query += "idIdle = case ";
@@ -671,7 +610,7 @@ namespace Downtime_table
 
             for (int i = 0; i < datesNew.Count; i++)
             {
-                query += $" WHEN Id = {datesNew[i].Id} THEN '{datesNew[i].Comments}'";
+                query += $" WHEN Id = {datesNew[i].Id} THEN '{datesNew[i].Comment}'";
             }
                 
             query += " else Comment END ";
@@ -694,36 +633,57 @@ namespace Downtime_table
             return query;
         }
 
-        private List<Date> DeletesIdenticalData(ref List<Date> datesNew, List<Date> datesPast)
+        /// <summary>
+        /// Объединяет новые и архивные данные, удаляя дубликаты
+        /// </summary>
+        /// <param name="newData">Список новых обработанных данных</param>
+        /// <param name="archivedData">Список архивных данных</param>
+        /// <returns>Объединенный список данных без дубликатов</returns>
+        private List<ArchivedDate> DeletesIdenticalData(List<ProcessedDate> newData, List<ArchivedDate> archivedData)
         {
-            List<Date> result = new List<Date>();
-            List<Date> delited = new List<Date>();
-            foreach (var date in datesNew)
+            // Создаем результирующий список
+            List<ArchivedDate> result = new List<ArchivedDate>();
+
+            // Добавляем все архивные данные в результат
+            foreach (var archived in archivedData)
             {
-                result.Add(date);
+                result.Add(archived); // Архивные данные уже имеют IsPastData = true
             }
 
-            for(int i = 0; i < datesPast.Count; i++)
+            // Создаем хеш-сет для быстрого поиска дубликатов
+            HashSet<string> existingKeys = new HashSet<string>();
+
+            // Добавляем ключи существующих элементов
+            foreach (var item in result)
             {
-                for(int j = 0; j < result.Count; j++)
+                string key = $"{item.Timestamp}_{item.Difference}_{item.Recept.Name}";
+                existingKeys.Add(key);
+            }
+
+            // Проходим по новым данным
+            foreach (var newItem in newData)
+            {
+                // Создаем ключ для текущего элемента
+                string key = $"{newItem.Timestamp}_{newItem.Difference}_{newItem.Recept.Name}";
+
+                // Проверяем, есть ли такой элемент уже в результате
+                if (!existingKeys.Contains(key))
                 {
-                    if (datesPast[i].Timestamp == result[j].Timestamp)
-                    {
-                        if (datesPast[i].Difference == result[j].Difference)
-                        {
-                            if (datesPast[i].Recept.Name == result[j].Recept.Name)
-                            {
-                                delited.Add(result[j]);
-                                result[j] = datesPast[i];
-                            }
-                        }
-                    }
-                }
-            }
+                    // Создаем новый ArchivedDate на основе ProcessedDate
+                    ArchivedDate newArchivedItem = new ArchivedDate(
+                        newItem.Id,
+                        newItem.Timestamp,
+                        newItem.Difference,
+                        newItem.Recept,
+                        newItem.IdTypeDowntime,
+                        newItem.TypeDownTime,
+                        newItem.Comment,
+                        false // Новые данные имеют IsPastData = false
+                    );
 
-            foreach (var item in delited)
-            {
-                datesNew.Remove(item);
+                    result.Add(newArchivedItem);
+                    existingKeys.Add(key); // Добавляем ключ в хеш-сет
+                }
             }
 
             return result;
@@ -733,11 +693,11 @@ namespace Downtime_table
         {
             bool checkDatesNew = true, checkDatesPast = true;
 
-            for (int i = 0; i < datesNew.Count; i++)
+            for (int i = 0; i < _processedDate.Count; i++)
             {
-                if (datesNew[i].Comments != null)
+                if (_processedDate[i].Comment != null)
                 {
-                    if (datesNew[i].IdTypeDowntime >= 0)
+                    if (_processedDate[i].IdTypeDowntime >= 0)
                     {
                         checkDatesNew = true;
                     }
@@ -754,11 +714,11 @@ namespace Downtime_table
                 }
             }
 
-            for (int i = 0; i < datesPast.Count; i++)
+            for (int i = 0; i < _archivedDate.Count; i++)
             {
-                if (datesPast[i].Comments != null)
+                if (_archivedDate[i].Comment != null)
                 {
-                    if (datesPast[i].IdTypeDowntime >= 0)
+                    if (_archivedDate[i].IdTypeDowntime >= 0)
                     {
                         checkDatesPast = true;
                     }
@@ -791,8 +751,9 @@ namespace Downtime_table
         /// </summary>
         public void ClearData()
         {
-            newDates.Clear();
-            datesPast.Clear();
+            _processedDate.Clear();
+            _rawDate.Clear();
+            _archivedDate.Clear();
         }
         
         /// <summary>
@@ -814,7 +775,7 @@ namespace Downtime_table
 
         private async Task<List<Recept>> GetLocalPCRecepts()
         {
-            using (MySqlConnection connection = new MySqlConnection(PcConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(_pcConnectionString))
             {
                 try
                 {
@@ -878,7 +839,7 @@ namespace Downtime_table
             _logger.Trace("GetServerRecepts > Start");
             string query = "SELECT Name FROM spslogger.receptTime group by Name;";
 
-            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(_serverConnectionString))
             {
                 try
                 {
@@ -951,7 +912,7 @@ namespace Downtime_table
         {
             string sqlInsert = "INSERT INTO spslogger.recepttime (Name, Time) VALUES (@Name, @Time)";
             
-            using (MySqlConnection connection = new MySqlConnection(ServerConnectionString))
+            using (MySqlConnection connection = new MySqlConnection(_serverConnectionString))
             {
                 try
                 {

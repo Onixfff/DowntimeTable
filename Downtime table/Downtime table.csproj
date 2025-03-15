@@ -158,15 +158,23 @@
   <ItemGroup>
     <Compile Include="Comments.cs" />
     <Compile Include="Database.cs" />
-    <Compile Include="Date.cs" />
     <Compile Include="DateIdle.cs" />
+    <Compile Include="Moduls\Database\Abstractions\BaseDataSource.cs" />
+    <Compile Include="Moduls\Database\Abstractions\ReceptDataSource.cs" />
+    <Compile Include="Moduls\Database\Sources\ArchivedDateSource.cs" />
+    <Compile Include="Moduls\Database\Sources\RawDataSource.cs" />
+    <Compile Include="Moduls\Data\Abstractions\BaseDate.cs" />
+    <Compile Include="Moduls\Data\Sources\DateTransformationModels\ProcessedDate.cs" />
+    <Compile Include="Moduls\Data\Sources\ArchivedDate.cs" />
+    <Compile Include="Moduls\Data\Sources\ViewDate.cs" />
+    <Compile Include="Moduls\Utils\TimeManager.cs" />
     <Compile Include="Production.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Production.Designer.cs">
       <DependentUpon>Production.cs</DependentUpon>
     </Compile>
-    <Compile Include="newDate.cs" />
+    <Compile Include="Moduls\Data\Sources\DateTransformationModels\RawDate.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Recept.cs" />
@@ -231,6 +239,9 @@
       <Project>{b5d8e7ab-9cd0-4582-879c-331496c90659}</Project>
       <Name>CheckPasses</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Interfaces\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

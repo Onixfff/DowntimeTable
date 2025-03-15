@@ -2,13 +2,13 @@
 
 namespace Downtime_table
 {
-    public class newDate
+    public class RawDate
     {
         public int DBIG;
         public DateTime DateTime;
         public string NameRecept;
 
-        public newDate(int dbig, DateTime dateTime, string nameRecept)
+        public RawDate(int dbig, DateTime dateTime, string nameRecept)
         {
             DBIG = dbig;
             DateTime = dateTime;
