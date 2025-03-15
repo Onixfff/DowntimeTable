@@ -18,21 +18,6 @@
         {
         }
 
-        // Метод для преобразования в ArchivedDate
-        public ArchivedDate ToArchivedDate()
-        {
-            return new ArchivedDate(
-                Id,
-                Timestamp,
-                Difference,
-                Recept,
-                IdTypeDowntime,
-                TypeDownTime,
-                Comment,
-                IsPastData
-            );
-        }
-
         // Метод валидации
         private bool Validate()
         {

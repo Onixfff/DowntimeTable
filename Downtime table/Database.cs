@@ -80,7 +80,7 @@ namespace Downtime_table
             }
         }
 
-        public async Task<bool> GetMain(DateTime dateTime, DataGridView dataGridView1)
+        public async Task<List<ViewDate>> GetMain(DateTime dateTime)
         {
             try
             {
@@ -101,14 +101,14 @@ namespace Downtime_table
                 // Шаг 4: Получение и обработка данных
                 await ProcessData(dataSql, archiveSql);
 
-                return true;
             }
             catch (Exception ex) 
             {
                 _logger.Error(ex, "Ошибка в GetMain");
                 MessageBox.Show($"{ex.Message}");
-                return false;
             }
+
+            return ChangeArchivedDateInViewDate();
         }
 
         // Метод для синхронизации рецептов
@@ -191,13 +191,23 @@ namespace Downtime_table
             _resultDate = DeletesIdenticalData(_processedDate, _archivedDate);
         }
 
-        public List<ArchivedDate> GetDate()
+        /// <summary>
+        /// Возвращает преборазованные данные в view формате для фронта
+        /// </summary>
+        /// <returns>Список данных в формате ViewDate</returns>
+        private List<ViewDate> ChangeArchivedDateInViewDate()
         {
+            List<ViewDate> viewDates = new List<ViewDate>();
+
             if (_resultDate != null && _resultDate.Count > 0)
-                return _resultDate;
-            else
-                Console.WriteLine("Нету данных");
-                return _resultDate; 
+            {
+                // Преобразуем каждый элемент списка ArchivedDate в ViewDate
+                foreach (var date in _resultDate)
+                {
+                    viewDates.Add(new ViewDate(date));
+                }
+            }
+            return viewDates;
         }
 
         private async Task<(string updateConnection, string error)> ChangeMconAsync(string nameIp, string _connectionString)
@@ -579,9 +589,9 @@ namespace Downtime_table
             return isNewData;
         }
 
-        public List<ArchivedDate> GetListDate()
+        public List<ViewDate> GetListDate()
         {
-            return _archivedDate;
+            return ChangeArchivedDateInViewDate();
         }
 
         /// <summary>

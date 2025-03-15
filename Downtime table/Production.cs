@@ -1,4 +1,5 @@
-﻿using NLog;
+﻿using Downtime_table.Moduls.Data.Sources;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -18,10 +19,11 @@ namespace Downtime_table
         private int columnIndex;
         private bool isUpdate = false;
         private List<Recept> _recepts;
-        private List<Date> mainDate;
+        private List<ViewDate> viewDate;
         private DataSet _ds = new DataSet();
         private List<DateIdle> _idles = new List<DateIdle>();
         private ILogger _logger;
+        private List<ViewDate> _viewDate;
 
         public Production(ILogger logger)
         {
@@ -49,7 +51,7 @@ namespace Downtime_table
 
             _logger.Trace("Form1_load > Start");
             DateTime _currentDate = DateTime.Now;
-            await _database.GetMain(_currentDate, dataGridView1);
+            _viewDate = await _database.GetMain(_currentDate);
 
             _recepts = await _database.GetRecept();
 
@@ -91,7 +93,7 @@ namespace Downtime_table
             _logger.Trace("Form1_load > End");
         }
 
-        private void ChangeDataGridView(List<Date> date, string ReceptName)
+        private void ChangeDataGridView(List<ViewDate> viewDate, string ReceptName)
         {
             string nameTable;
             _ds.Reset();
@@ -113,16 +115,16 @@ namespace Downtime_table
 
             if (ChecksDateWithinCurrentTime(nameTable))
             {
-                for (int i = 0; i < date.Count; i++)
+                for (int i = 0; i < viewDate.Count; i++)
                 {
-                    if (date[i].Recept.Name == nameTable)
+                    if (viewDate[i].Recept.Name == nameTable)
                     {
                         DataRow dr = dt.NewRow();
-                        dr["id"] = date[i].Id;
-                        dr["Время начало"] = date[i].Timestamp;
-                        dr["Время простоя"] = date[i].Difference;
-                        dr["Комментарий"] = date[i].Comments;
-                        dr["Рецепт"] = date[i].Recept.Name;
+                        dr["id"] = viewDate[i].Id;
+                        dr["Время начало"] = viewDate[i].Timestamp;
+                        dr["Время простоя"] = viewDate[i].Difference;
+                        dr["Комментарий"] = viewDate[i].Comment;
+                        dr["Рецепт"] = viewDate[i].Recept.Name;
                         dt.Rows.Add(dr);
                     }
                 }
@@ -131,29 +133,29 @@ namespace Downtime_table
             {
                 if (nameTable == "Все")
                 {
-                    for (int i = 0; i < date.Count; i++)
+                    for (int i = 0; i < viewDate.Count; i++)
                     {
                         DataRow dr = dt.NewRow();
-                        dr["id"] = date[i].Id;
-                        dr["Время начало"] = date[i].Timestamp;
-                        dr["Время простоя"] = date[i].Difference;
-                        dr["Комментарий"] = date[i].Comments;
-                        dr["Рецепт"] = date[i].Recept.Name;
+                        dr["id"] = viewDate[i].Id;
+                        dr["Время начало"] = viewDate[i].Timestamp;
+                        dr["Время простоя"] = viewDate[i].Difference;
+                        dr["Комментарий"] = viewDate[i].Comment;
+                        dr["Рецепт"] = viewDate[i].Recept.Name;
                         dt.Rows.Add(dr);
                     }
                 }
                 else
                 {
-                    for (int i = 0; i < date.Count; i++)
+                    for (int i = 0; i < viewDate.Count; i++)
                     {
-                        if (date[i].Recept.Name == nameTable)
+                        if (viewDate[i].Recept.Name == nameTable)
                         {
                             DataRow dr = dt.NewRow();
-                            dr["id"] = date[i].Id;
-                            dr["Время начало"] = date[i].Timestamp;
-                            dr["Время простоя"] = date[i].Difference;
-                            dr["Комментарий"] = date[i].Comments;
-                            dr["Рецепт"] = date[i].Recept.Name;
+                            dr["id"] = viewDate[i].Id;
+                            dr["Время начало"] = viewDate[i].Timestamp;
+                            dr["Время простоя"] = viewDate[i].Difference;
+                            dr["Комментарий"] = viewDate[i].Comment;
+                            dr["Рецепт"] = viewDate[i].Recept.Name;
                             dt.Rows.Add(dr);
                         }
                     }
@@ -193,7 +195,8 @@ namespace Downtime_table
             }
             dataGridView1.Columns.Add(cmbColumn);
 
-            List<Date> dates = _database.GetListDate();
+            List<ViewDate> dates = _database.GetListDate();
+
             for (int i = 0; i < dates.Count; i++)
             {
                 foreach (DataGridViewRow row in dataGridView1.Rows)
@@ -482,7 +485,7 @@ namespace Downtime_table
 
             if (textComboBox == "Все")
             {
-                ChangeDataGridView(_database.GetDate(), textComboBox);
+                ChangeDataGridView(_database.GetListDate(), textComboBox);
                 return;
             }
 
@@ -491,7 +494,7 @@ namespace Downtime_table
 
                 if (_recepts[i].Name == textComboBox)
                 {
-                    ChangeDataGridView(_database.GetDate(), textComboBox);
+                    ChangeDataGridView(_database.GetListDate(), textComboBox);
                 }
             }
         }
