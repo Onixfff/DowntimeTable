@@ -180,15 +180,22 @@ namespace Downtime_table
         // Метод для обработки данных
         private async Task ProcessData(string dataSql, string archiveSql)
         {
-            // Используем источники данных вместо прямых запросов
-            _rawDate = await _rawDataSource.GetDataAsync(dataSql);
+            try
+            {
+                // Используем источники данных вместо прямых запросов
+                _rawDate = await _rawDataSource.GetDataAsync(dataSql);
 
-            // Обновляем список рецептов в источнике архивных данных перед запросом
-            _archivedDateSource = new ArchivedDateSource(_serverConnectionString, _logger, _ServerRecepts);
-            _archivedDate = await _archivedDateSource.GetDataAsync(archiveSql);
+                // Обновляем список рецептов в источнике архивных данных перед запросом
+                _archivedDateSource = new ArchivedDateSource(_serverConnectionString, _logger, _ServerRecepts);
+                _archivedDate = await _archivedDateSource.GetDataAsync(archiveSql);
 
-            _processedDate = CalculateDowntime(_rawDate);
-            _resultDate = DeletesIdenticalData(_processedDate, _archivedDate);
+                _processedDate = CalculateDowntime(_rawDate);
+                _resultDate = DeletesIdenticalData(_processedDate, _archivedDate);
+            }
+            catch(Exception)
+            {
+                MessageBox.Show("Ошибка при получении данных");
+            }
         }
 
         /// <summary>
