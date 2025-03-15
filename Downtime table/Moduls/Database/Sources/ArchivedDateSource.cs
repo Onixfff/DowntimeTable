@@ -1,4 +1,5 @@
 ﻿using Downtime_table.Moduls.Data.Sources;
+using Downtime_table.Moduls.Database.Abstractions;
 using MySql.Data.MySqlClient;
 using NLog;
 using System;
@@ -8,20 +9,18 @@ using System.Threading.Tasks;
 
 namespace Downtime_table.Moduls.Database.Sources
 {
-    internal class ArchivedDateSource : BaseDataSource<ArchivedDate>
+    internal class ArchivedDateSource : ReceptDataSource<ArchivedDate>
     {
         public ArchivedDateSource(string connectionString, ILogger logger, List<Recept> recepts) : base(connectionString, logger, recepts){}
 
-        public override async Task<List<ArchivedDate>> GetDataAsync(string query)
+        protected override async Task<List<ArchivedDate>> GetDataWithReceptsAsync(string query, List<Recept> recepts)
         {
             List<ArchivedDate> datesLocal = new List<ArchivedDate>();
 
-            using (MySqlConnection connection = new MySqlConnection(ConnectionString))
+            using (MySqlConnection connection = await CreateConnectionAsync())
             {
                 try
                 {
-                    await connection.OpenAsync();
-
                     using (MySqlCommand command = new MySqlCommand(query, connection))
                     {
                         using (MySqlDataReader reader = (MySqlDataReader)await command.ExecuteReaderAsync())
@@ -68,10 +67,6 @@ namespace Downtime_table.Moduls.Database.Sources
                 {
                     Logger.Error(ex, "ReturnLastDataAsync > Error Exception");
                     throw;
-                }
-                finally
-                {
-                    await connection.CloseAsync();
                 }
             }
             return datesLocal;
