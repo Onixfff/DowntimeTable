@@ -13,7 +13,7 @@ namespace ClassLibraryGetIp
     {
         private readonly HttpClient client = new HttpClient
         {
-            BaseAddress = new Uri("https://192.168.100.100:5048")
+            BaseAddress = new Uri("http://192.168.100.100:5051")
         };
 
         public async Task<Ip> GetIp(string serverName)
