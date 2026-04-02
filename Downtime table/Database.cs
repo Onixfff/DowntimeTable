@@ -194,6 +194,11 @@ namespace Downtime_table
                             recept = new Recept(nameRecept, item.Time);
                             break;
                         }
+                        else
+                        {
+                            recept = new Recept(nameRecept, item.Time);
+                            break;
+                        }
                     }
 
                     if(recept == null)
