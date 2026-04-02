@@ -68,7 +68,7 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>C9A3779BDB5FA08959D6BF667A01764268A31E28</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>0C08D4C8D271D05D337858D90BB84EB2D6B12A8E</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>Resources\WinIco.ico</ApplicationIcon>
@@ -78,7 +78,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ClassLibraryGetIp">
-      <HintPath>..\..\ClassLibraryGetIp\ClassLibraryGetIp\bin\Debug\ClassLibraryGetIp.dll</HintPath>
+      <HintPath>..\..\Общезаводская программа\Общезаводская программа — копия — копия\Aeroblock\report\report\bin\Debug\ClassLibraryGetIp.dll</HintPath>
     </Reference>
     <Reference Include="Google.Protobuf, Version=3.28.2.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604, processorArchitecture=MSIL">
       <HintPath>..\packages\Google.Protobuf.3.28.2\lib\net45\Google.Protobuf.dll</HintPath>

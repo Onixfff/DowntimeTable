@@ -60,7 +60,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ClassLibraryGetIp">
-      <HintPath>..\..\ClassLibraryGetIp\ClassLibraryGetIp\bin\Debug\ClassLibraryGetIp.dll</HintPath>
+      <HintPath>..\..\Общезаводская программа\Общезаводская программа — копия — копия\Aeroblock\report\report\bin\Debug\ClassLibraryGetIp.dll</HintPath>
     </Reference>
     <Reference Include="Google.Protobuf, Version=3.25.1.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604, processorArchitecture=MSIL">
       <HintPath>..\packages\Google.Protobuf.3.25.1\lib\net45\Google.Protobuf.dll</HintPath>
@@ -168,6 +168,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
+    <None Include="Downtime table_2_TemporaryKey.pfx" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
